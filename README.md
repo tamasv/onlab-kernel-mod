@@ -16,8 +16,7 @@ ilyen domain-ek egy-egy előre kiválasztott halmazát. Ha azután fény
 derült a gonosz kód működésére  ezeket domain regisztrációkat jogi úton
 felfüggesztették.
 
-Lehetséges a DNS üzenetekbe más módon is rejtett kommunikációs csatornát
-- covert channel-t - implementálni. Különösen tág lehetőségek nyílnak
+Lehetséges a DNS üzenetekbe más módon is rejtett kommunikációs csatornát - covert channel-t - implementálni. Különösen tág lehetőségek nyílnak
 akkor, ha a támadó a kliensek által használt rekurzív névszervernek is
 birtokában van, azt is megfertőzte.
 
@@ -35,9 +34,9 @@ implementációra, elemzésekre és összehasonlításokra.
 TODO: Szöveg
 
 ###Feladatok
-[] Betölthető kernel modul, ami netfilter hookot használ
-[] A kernel modul felismeri és parseolja a dns csomagokat
-[] Beszúr egy cname rekordot egy visszaadás elött álló cname/a rekord helyett, majd kérdésre a cname/a rekordot küldeni
-[] Kibontja a bejövő request id-jában szereplő kódolt információt
-[] Userland kommunikáció
+- [] Betölthető kernel modul, ami netfilter hookot használ
+- [] A kernel modul felismeri és parseolja a dns csomagokat
+- [] Beszúr egy cname rekordot egy visszaadás elött álló cname/a rekord helyett, majd kérdésre a cname/a rekordot küldeni
+- [] Kibontja a bejövő request id-jában szereplő kódolt információt
+- [] Userland kommunikáció
 

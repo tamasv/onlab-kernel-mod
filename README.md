@@ -34,8 +34,8 @@ implementációra, elemzésekre és összehasonlításokra.
 TODO: Szöveg
 
 ###Feladatok
-- [] Betölthető kernel modul, ami netfilter hookot használ
-- [] A kernel modul felismeri és parseolja a dns csomagokat
+- [x] Betölthető kernel modul, ami netfilter hookot használ
+- [x/] A kernel modul felismeri és parseolja a dns csomagokat
 - [] Beszúr egy cname rekordot egy visszaadás elött álló cname/a rekord helyett, majd kérdésre a cname/a rekordot küldeni
 - [] Kibontja a bejövő request id-jában szereplő kódolt információt
 - [] Userland kommunikáció

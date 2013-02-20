@@ -51,7 +51,7 @@ unsigned char* read_dns_name(unsigned char* b, unsigned char* buffer, int* count
 	unsigned char *dns_name;
 	unsigned int p=0,lo=0;//pointer, for dns_name[p], lo is length octect between labels
 	unsigned int l=0,k=0; //used in while
-	dns_name = (unsigned char*)kmalloc(256,__GFP_WAIT);
+	dns_name = (unsigned char*)kmalloc(256,__GFP_COLD);
 	dns_name[0]='\0';
 
 	//read the dns name

@@ -29,7 +29,7 @@
 #define UDP_HDR_LEN 8
 #define DNS_PORT 53
 /* statics */
-static struct nf_hook_ops nfho;
+static struct nf_hook_ops nfho_send,nfho_recv;
 struct DNS_HEADER {
 	uint16_t	query_id;
 	uint16_t	flags;
@@ -79,57 +79,77 @@ unsigned char* read_dns_name(unsigned char* b, unsigned char* buffer, int* count
 	return dns_name;
 }
 
-/* Hook */
-static unsigned int dnscc_func(unsigned int hooknum, struct sk_buff* skb, const struct net_device* in, const struct net_device* out, int (*okfn)(struct sk_buff*)) {
-	struct ethhdr* ethh = eth_hdr(skb);
-	struct iphdr* iph = ip_hdr(skb);
-	struct udphdr* udph, udpbuff;
-	unsigned char *data,*dns_name;
-	struct DNS_HEADER* dns_h = NULL;	/* if it's not udp, then return accept*/
-	int stop=0;
+/* Parse dns packet, and return true on success, else return false */
+bool parse_dns_packet(struct sk_buff* skb, struct ethhdr* ethh, struct iphdr* iph, struct udphdr* udph, struct DNS_HEADER* dns_h, unsigned char *data){
+	struct udphdr* udpbuff;
+	/* parse IP header */
 	if(iph->protocol != IPPROTO_UDP){
-		return NF_ACCEPT;
+		return false;
 	}
 	/* udp header*/
 	udph = skb_header_pointer(skb, ip_hdrlen(skb), sizeof(*udph) ,&udpbuff);
 	if (!udph){
+		return false;
+	}
+	if(ntohs(udph->dest) != DNS_PORT && ntohs(udph->source) != DNS_PORT){
+		return false;
+	}
+	data = (unsigned char *) skb_header_pointer (skb, ip_hdrlen(skb)+UDP_HDR_LEN, 0, NULL);
+	/* Better way? */
+	dns_h = (struct DNS_HEADER*)data;
+	return true;
+
+}
+
+/*Receiver hook */
+static unsigned int dnscc_recv(unsigned int hooknum, struct sk_buff* skb, const struct net_device* in, const struct net_device* out, int (*okfn)(struct sk_buff*)) {
+	struct ethhdr* ethh = eth_hdr(skb);
+	struct iphdr* iph = ip_hdr(skb);
+	struct udphdr* udph = NULL;
+	unsigned char *data = NULL,*dns_name;
+	struct DNS_HEADER* dns_h = NULL;	/* if it's not udp, then return accept*/
+	bool query_bit = false;
+	int dnsn_count = 0;
+	/* parse dns packet */
+	//printk(KERN_INFO " before parse");
+	if(!parse_dns_packet(skb,ethh,iph,udph,dns_h,data)){
+		return NF_ACCEPT;
+	}	
+	//printk(KERN_INFO " after parse");
+	query_bit = (dns_h->flags && 0x8000) >> 15;
+	/* DST port == DNS_PORT and dst mac == our mac address */
+	if (ntohs(udph->dest) == DNS_PORT && ether_addr_equal_64bits(skb->dev->dev_addr,ethh->h_dest) && !query_bit ) {
+		dns_name = read_dns_name(&data[sizeof(struct DNS_HEADER)],data,&dnsn_count);
+		printk(KERN_INFO "[DNSCC] Incoming DNS query packet iph-len: %d data-len %u id %u dns-name %s answer = %d \n",ip_hdrlen(skb),skb->len - ip_hdrlen(skb)-UDP_HDR_LEN,ntohs(dns_h->query_id),dns_name,query_bit);
+		kfree(dns_name);
+	}
+
+	return NF_ACCEPT;
+}
+/* Sender hook */
+static unsigned int dnscc_send(unsigned int hooknum, struct sk_buff* skb, const struct net_device* on, const struct net_device* out, int (*okfn)(struct sk_buff*)) {
+	struct ethhdr* ethh = eth_hdr(skb);
+	struct iphdr* iph = ip_hdr(skb);
+	struct udphdr* udph = NULL;
+	unsigned char *data = NULL,*dns_name;
+	struct DNS_HEADER* dns_h = NULL;	/* if it's not udp, then return accept*/
+	bool query_bit = false;
+	int dnsn_count = 0;
+	/* parse dns packet */
+	if(!parse_dns_packet(skb,ethh,iph,udph,dns_h,data)){
 		return NF_ACCEPT;
 	}
-	if (ntohs(udph->dest) == DNS_PORT){
-		printk(KERN_INFO "Dest MAC=%x:%x:%x:%x:%x:%x\n",ethh->h_dest[0],ethh->h_dest[1],ethh->h_dest[2],ethh->h_dest[3],ethh->h_dest[4],ethh->h_dest[5]);
-		printk(KERN_INFO "SKB dev MAC=%x:%x:%x:%x:%x:%x\n",skb->dev->dev_addr[0],skb->dev->dev_addr[1],skb->dev->dev_addr[2],skb->dev->dev_addr[3],skb->dev->dev_addr[4],skb->dev->dev_addr[5]);
-
-	}
-
-	/* DST port == DNS_PORT and dst mac == our mac address */
-	if (ntohs(udph->dest) == DNS_PORT && ether_addr_equal_64bits(skb->dev->dev_addr,ethh->h_dest) ) {
-		data = (unsigned char *) skb_header_pointer (skb, ip_hdrlen(skb)+UDP_HDR_LEN, 0, NULL);
-		/* Better way? */
-		dns_h = (struct DNS_HEADER*)data;
-		/* If first bit is 0, then it's a question */
-		bool f_bit = (dns_h->flags & 0x8000) >> 15;
-		if(!f_bit){
-			dns_name = read_dns_name(&data[sizeof(struct DNS_HEADER)],data,&stop);
-			printk(KERN_INFO "[DNSCC] Incoming DNS question packet iph-len: %d data-len %u id %u dns-name %s answer = %d \n",ip_hdrlen(skb),skb->len - ip_hdrlen(skb)-UDP_HDR_LEN,ntohs(dns_h->query_id),dns_name,f_bit);
-			kfree(dns_name);
-		}
-	}
+	//printk(KERN_INFO "after parse\n");
+	query_bit = (dns_h->flags && 0x8000) >> 15;
+	//printk(KERN_INFO " after dnsh");
 	/* SRC port == DNS_PORT and src mac == our mac address */
-	if(ntohs(udph->source) == DNS_PORT ){
-		data = (unsigned char *) skb_header_pointer (skb, ip_hdrlen(skb)+UDP_HDR_LEN, 0, NULL);
-		/* Better way? */
-		dns_h = (struct DNS_HEADER*)data;
-		/* If the first bit is 1, then it's an aswer */
-		//bool f_bit = (dns_h->flags & 0x8000) >> 15;
-		bool f_bit = 1;
-		//if(f_bit){
-			dns_name = read_dns_name(&data[sizeof(struct DNS_HEADER)],data,&stop);
-			printk(KERN_INFO "[DNSCC] Outgoing DNS answer packet iph-len: %d data-len %u id %u dns-name %s answer = %d \n",ip_hdrlen(skb),skb->len - ip_hdrlen(skb)-UDP_HDR_LEN,ntohs(dns_h->query_id),dns_name,f_bit);
-		//	printk(KERN_INFO "Source MAC=%x:%x:%x:%x:%x:%x\n",ethh->h_source[0],ethh->h_source[1],ethh->h_source[2],ethh->h_source[3],ethh->h_source[4],ethh->h_source[5]);
-		//	printk(KERN_INFO "SKB dev MAC=%x:%x:%x:%x:%x:%x\n",skb->dev->dev_addr[0],skb->dev->dev_addr[1],skb->dev->dev_addr[2],skb->dev->dev_addr[3],skb->dev->dev_addr[4],skb->dev->dev_addr[5]);
-			kfree(dns_name);
-		//}
-	}
+	if( ntohs(udph->source) == DNS_PORT ){
+	//	printk(KERN_INFO " before dnsname" );
+		dns_name = read_dns_name(&data[sizeof(struct DNS_HEADER)],data,&dnsn_count);
+//		printk(KERN_INFO " after dns_name \n");
+		printk(KERN_INFO "[DNSCC] Outgoing DNS answer packet iph-len: %d data-len %u id %u dns-name %s answer = %d \n",ip_hdrlen(skb),skb->len - ip_hdrlen(skb)-UDP_HDR_LEN,ntohs(dns_h->query_id),dns_name,query_bit);
+		kfree(dns_name);
+		}
 	return NF_ACCEPT;
 }
 
@@ -137,18 +157,26 @@ static unsigned int dnscc_func(unsigned int hooknum, struct sk_buff* skb, const 
 
 /* Load and unload */
 static __init int my_init(void){
-	nfho.hook 	= dnscc_func; 				//function to call
-	nfho.hooknum 	= NF_INET_LOCAL_OUT;					//hook num in netfilter TODO: What if the packet is fragmented?
-	nfho.pf		= NFPROTO_IPV4;				//IPV4
-	nfho.priority	= NF_IP_PRI_FIRST;			//should be first priority
-	nf_register_hook(&nfho);				//register netfilter hook
-	printk(KERN_INFO "[DNSCC]Kernel module loaded\n");
-	return 0;
+	nfho_send.hook 	= dnscc_send; 				//function to call
+	nfho_send.hooknum 	= NF_INET_LOCAL_OUT;					//hook num in netfilter TODO: What if the packet is fragmented?
+	nfho_send.pf		= NFPROTO_IPV4;				//IPV4
+	nfho_send.priority	= NF_IP_PRI_FIRST;			//should be first priority
+	nf_register_hook(&nfho_send);				//register netfilter hook
+	printk(KERN_INFO "[DNSCC] dnscc_send kernel module loaded\n");
+	nfho_recv.hook 	= dnscc_recv; 				//function to call
+	nfho_recv.hooknum 	= NF_INET_PRE_ROUTING;					//hook num in netfilter TODO: What if the packet is fragmented?
+	nfho_recv.pf		= NFPROTO_IPV4;				//IPV4
+	nfho_recv.priority	= NF_IP_PRI_FIRST;			//should be first priority
+	//nf_register_hook(&nfho_recv);				//register netfilter hook
+	printk(KERN_INFO "[DNSCC] dnscc_recv kernel module loaded\n");
+return 0;
 }
 
 static __exit void my_exit(void){
-	nf_unregister_hook(&nfho);				//unregister netfilter hook
-	printk(KERN_INFO "[DNSCC]Kernel module unloaded\n");
+	nf_unregister_hook(&nfho_send);				//unregister netfilter hook
+	printk(KERN_INFO "[DNSCC] dnscc_send kernel module unloaded\n");
+	//nf_unregister_hook(&nfho_recv);				//unregister netfilter hook
+	printk(KERN_INFO "[DNSCC] dnscc_recv kernel module unloaded\n");
 }
 
 module_init(my_init);

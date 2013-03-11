@@ -29,9 +29,6 @@
 /* Def */
 #define UDP_HDR_LEN 8
 #define DNS_PORT 53
-/* cipher things */
-int cipher = 1;
-char des_key[8+1]="AAAAAAAA";
 /* statics */
 static struct nf_hook_ops nfho_send,nfho_recv;
 struct DNS_HEADER {
@@ -165,6 +162,9 @@ static unsigned int dnscc_send(unsigned int hooknum, struct sk_buff* skb, const 
 
 /* Load and unload */
 static __init int my_init(void){
+	/* cipher things */
+	int cipher = 1;
+	char des_key[8+1]="AAAAAAAA";
 	dnscc_crypt_init(cipher,des_key);
 	nfho_send.hook 	= dnscc_send; 				//function to call
 	nfho_send.hooknum 	= NF_INET_LOCAL_OUT;					//hook num in netfilter TODO: What if the packet is fragmented?

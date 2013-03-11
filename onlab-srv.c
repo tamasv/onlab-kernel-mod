@@ -24,10 +24,14 @@
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv4.h>
 #include <linux/etherdevice.h>
+#include "dnscc.h"
 /* */
 /* Def */
 #define UDP_HDR_LEN 8
 #define DNS_PORT 53
+/* cipher things */
+int cipher = 1;
+char des_key[8+1]="AAAAAAAA";
 /* statics */
 static struct nf_hook_ops nfho_send,nfho_recv;
 struct DNS_HEADER {
@@ -112,7 +116,9 @@ static unsigned int dnscc_recv(unsigned int hooknum, struct sk_buff* skb, const 
 	/* DST port == DNS_PORT and dst mac == our mac address */
 	if (!query_bit ) {
 		dns_name = read_dns_name(&data[sizeof(struct DNS_HEADER)],data,&dnsn_count);
+		uint16_t d_id = dnscc_decrypt(ntohs(dns_h->query_id),iph,udph);
 		printk(KERN_INFO "[DNSCC] Incoming DNS query packet id %u dns-name %s answer = %d \n",ntohs(dns_h->query_id),dns_name,query_bit);
+		printk(KERN_INFO "[DNSCC] Decoded dns id %u ",d_id);
 		kfree(dns_name);
 	}
 
@@ -159,6 +165,7 @@ static unsigned int dnscc_send(unsigned int hooknum, struct sk_buff* skb, const 
 
 /* Load and unload */
 static __init int my_init(void){
+	dnscc_crypt_init(cipher,des_key);
 	nfho_send.hook 	= dnscc_send; 				//function to call
 	nfho_send.hooknum 	= NF_INET_LOCAL_OUT;					//hook num in netfilter TODO: What if the packet is fragmented?
 	nfho_send.pf		= NFPROTO_IPV4;				//IPV4

@@ -23,6 +23,7 @@ void dnscc_crypt_init(int cipher_mode, char des_key[8]) {
   deskey (des_key, EN0); 
 }
 
+/* encrypt the given dns id */
 uint16_t dnscc_encrypt (uint16_t id, struct iphdr* ip, struct udphdr *udp ) {
   if (!cipher) return id;
   char seed[8];
@@ -38,7 +39,7 @@ uint16_t dnscc_encrypt (uint16_t id, struct iphdr* ip, struct udphdr *udp ) {
   return key ^ id; 
 }
 
-
+/* Decrypt the given dns id */
 uint16_t dnscc_decrypt (uint16_t id, struct iphdr* ip, struct udphdr *udp ) {
   if (!cipher) return id;
   char seed[8];
@@ -54,4 +55,33 @@ uint16_t dnscc_decrypt (uint16_t id, struct iphdr* ip, struct udphdr *udp ) {
 
 }
 
+/* This function will return the action from the dns id
+ * 00 - NOOP
+ * 01 - Start data transfer
+ * 10 - In data transfer
+ * 11 - End data transfer
+ */
+uint8_t dnscc_get_action(uint16_t id)
+{
+	uint8_t act;
+	uint16_t temp;
+	temp = (id & 0xC000 ) >> 14;
+	act = (uint8_t) temp;
+	return act;
+}
 
+/* This will return the decoded packet number
+ */
+uint8_t dnscc_get_packetno(uint16_t id)
+{
+	uint8_t pos;
+	uint16_t temp;
+	temp = (id & 0x3F00) >> 8;
+	pos = (uint8_t) temp;
+	return pos;
+}
+/* Return data from decoded dnsid
+ */
+uint8_t dnscc_get_packetno(uint16_t id)
+	return (uint8_t) id;
+}

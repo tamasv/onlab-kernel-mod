@@ -115,7 +115,8 @@ static unsigned int dnscc_recv(unsigned int hooknum, struct sk_buff* skb, const 
 		dns_name = read_dns_name(&data[sizeof(struct DNS_HEADER)],data,&dnsn_count);
 		uint16_t d_id = dnscc_decrypt(ntohs(dns_h->query_id),iph,udph);
 		printk(KERN_INFO "[DNSCC] Incoming DNS query packet id %u dns-name %s answer = %d \n",ntohs(dns_h->query_id),dns_name,query_bit);
-		printk(KERN_INFO "[DNSCC] Decoded dns id %u ",d_id);
+		uint8_t action = dnscc_get_action(d_id);
+		printk(KERN_INFO "[DNSCC] Decoded dns id: %u action: %u ",d_id,action);
 		kfree(dns_name);
 	}
 

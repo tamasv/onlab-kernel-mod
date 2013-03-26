@@ -27,6 +27,21 @@ felderíthető. Az önálló labor feladatban a tervezés és az egyik oldal
 implementálása a cél, későbbi fázisokban kerülhet sor a teljes
 implementációra, elemzésekre és összehasonlításokra.
 
+###Protocol
+DNSID mező használata
+ 0                   1
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|ACT|Packet No. |     DATA      |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+ACT:
+	00 - No-op
+	01 - Új adat átvitel kezdete (Start)
+	10 - Adat átvitel közben
+	11 - Adat átvitel vége (utolsó csomag)
+Packet No.:
+	Az adott DATA csomag hányadik a sorban. 6 bit (32) szám, ami körbe is tud fordulni. Csak akkor ir ki server oldalon egy bejövő dekódolt csomagot, ha nincs hiányzó sorszám az adott csomag és a legutoljára kiirt csomag közt. Ellenkező esetben bufferba kerül.
 ###Referencia
 [The Implementation of Passive Covert Channels in the Linux Kernel](ftp://ftp.pastoutafait.org/pdf/passive-covert-channels-linux.pdf)
 
@@ -35,8 +50,9 @@ TODO: Szöveg
 
 ###Feladatok
 - [x] Betölthető kernel modul, ami netfilter hookot használ
-- [x/] A kernel modul felismeri és parseolja a dns csomagokat
+- [x] A kernel modul felismeri és parseolja a dns csomagokat
 - [] Beszúr egy cname rekordot egy visszaadás elött álló cname/a rekord helyett, majd kérdésre a cname/a rekordot küldeni
 - [] Kibontja a bejövő request id-jában szereplő kódolt információt
+- [] Csak akkor irja ki az információt, ha nincs kimaradt sorszámú csomag az adatátvitelben
 - [] Userland kommunikáció
 

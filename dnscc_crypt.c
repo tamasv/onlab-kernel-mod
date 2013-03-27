@@ -41,6 +41,7 @@ uint16_t dnscc_encrypt (uint16_t id, struct iphdr* ip, struct udphdr *udp ) {
 
 /* Decrypt the given dns id */
 uint16_t dnscc_decrypt (uint16_t id, struct iphdr* ip, struct udphdr *udp ) {
+  int debug = 1;
   if (!cipher) return id;
   char seed[8];
   strcpy (&seed[0], "PK");
@@ -51,6 +52,16 @@ uint16_t dnscc_decrypt (uint16_t id, struct iphdr* ip, struct udphdr *udp ) {
   des (seed, hash);
 
   uint16_t key = (*(uint16_t*)hash);
+  if(debug){
+        printk( KERN_INFO "[DNSCC]DEBUG - using ntohs! \n");
+        printk( KERN_INFO "[DNSCC]id: %u \n", id);
+        printk( KERN_INFO "[DNSCC]udp source port: %u \n", ntohs(udp->source));
+        printk( KERN_INFO "[DNSCC]udp dest port: %u \n", ntohs(udp->dest));
+        printk( KERN_INFO "[DNSCC]ip source: %u \n", ip->saddr);
+        printk( KERN_INFO "[DNSCC]ip dest: %u \n", ip->daddr);
+        printk( KERN_INFO "[DNSCC]key: %u \n", key);  
+  }
+
   return key ^ id;
 
 }
@@ -82,6 +93,6 @@ uint8_t dnscc_get_packetno(uint16_t id)
 }
 /* Return data from decoded dnsid
  */
-uint8_t dnscc_get_packetno(uint16_t id)
+uint8_t dnscc_get_data(uint16_t id){
 	return (uint8_t) id;
 }

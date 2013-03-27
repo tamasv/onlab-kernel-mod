@@ -1,0 +1,30 @@
+/* From nushu 
+ *
+ */
+#include <stdint.h>
+#include "../d3des.h"
+
+int cipher;	// 0 - no cipher, 1 - des
+
+void dnscc_crypt_init(int cipher_mode, char des_key[8]) {
+  cipher = cipher_mode;
+  if (!cipher) return;
+  deskey (des_key, EN0); 
+}
+
+/* encrypt the given dns id */
+uint16_t dnscc_crypt (uint16_t id, uint16_t udps, uint16_t udpd, uint32_t ips, uint32_t ipd ) {
+  if (!cipher) return id;
+  char seed[8];
+  strcpy (&seed[0], "PK");
+  *((uint16_t*)&seed[2]) = udps ^ udpd;
+  *((uint32_t*)&seed[4]) = ips ^ ipd;
+
+  char hash[8];
+  des (seed, hash);
+
+  uint16_t key = (*(uint16_t*)hash);
+ 
+  return key ^ id; 
+}
+

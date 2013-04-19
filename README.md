@@ -48,10 +48,8 @@ DNSID mező használata
 Az adott DATA csomag hányadik a sorban. 6 bit (32) szám, ami körbe is tud fordulni. Csak akkor ir ki server oldalon egy bejövő dekódolt csomagot, ha nincs hiányzó sorszám az adott csomag és a legutoljára kiirt csomag közt. Ellenkező esetben bufferba kerül.
 #####Data:
 Ide kerül az adat (8 bit)
-###Referencia
-[The Implementation of Passive Covert Channels in the Linux Kernel](ftp://ftp.pastoutafait.org/pdf/passive-covert-channels-linux.pdf)
 
-##Linux kernel modul implementáció
+###Linux kernel modul implementáció
 TODO: Szöveg
 
 ###Fileok:
@@ -71,3 +69,5 @@ C test program, ami egy fájlt feldarabol 8 bites blokkokra
 - [] Beszúr egy cname rekordot egy visszaadás elött álló cname/a rekord helyett, majd kérdésre a cname/a rekordot küldeni
 - [] Userland kommunikáció
 
+###Referencia
+[The Implementation of Passive Covert Channels in the Linux Kernel](ftp://ftp.pastoutafait.org/pdf/passive-covert-channels-linux.pdf)

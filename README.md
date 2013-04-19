@@ -70,6 +70,6 @@ C test program, ami egy fájlt feldarabol 8 bites blokkokra
 - [] Userland kommunikáció
 
 ###Referencia
-[The Implementation of Passive Covert Channels in the Linux Kernel](ftp://ftp.pastoutafait.org/pdf/passive-covert-channels-linux.pdf)
-[Scapy](http://www.secdev.org/projects/scapy/)
-[Netfilter hacking how-to](http://www.netfilter.org/documentation/HOWTO/netfilter-hacking-HOWTO-3.html)
+[The Implementation of Passive Covert Channels in the Linux Kernel](ftp://ftp.pastoutafait.org/pdf/passive-covert-channels-linux.pdf)  
+[Scapy](http://www.secdev.org/projects/scapy/)  
+[Netfilter hacking how-to](http://www.netfilter.org/documentation/HOWTO/netfilter-hacking-HOWTO-3.html)  

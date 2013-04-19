@@ -29,12 +29,13 @@ implementációra, elemzésekre és összehasonlításokra.
 
 ###Protocol
 DNSID mező használata
+<code>
  0                   1
  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 |ACT|Packet No. |     DATA      |
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-
+</code>
 ACT:
 	00 - No-op
 	01 - Új adat átvitel kezdete (Start)

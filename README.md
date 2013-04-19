@@ -29,31 +29,45 @@ implementációra, elemzésekre és összehasonlításokra.
 
 ###Protocol
 DNSID mező használata
-<code>
+<pre>
  0                   1
  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 |ACT|Packet No. |     DATA      |
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-</code>
-ACT:
-	00 - No-op
-	01 - Új adat átvitel kezdete (Start)
-	10 - Adat átvitel közben
-	11 - Adat átvitel vége (utolsó csomag)
-Packet No.:
-	Az adott DATA csomag hányadik a sorban. 6 bit (32) szám, ami körbe is tud fordulni. Csak akkor ir ki server oldalon egy bejövő dekódolt csomagot, ha nincs hiányzó sorszám az adott csomag és a legutoljára kiirt csomag közt. Ellenkező esetben bufferba kerül.
+</pre>
+#####ACT:
+<ul>
+<li>00 - No-op</li>
+<li>01 - Új adat átvitel kezdete (Start)</li>
+<li>10 - Adat átvitel közben</li>
+<li>11 - Adat átvitel vége (utolsó csomag)</li>
+</ul>
+#####Packet No.:
+
+Az adott DATA csomag hányadik a sorban. 6 bit (32) szám, ami körbe is tud fordulni. Csak akkor ir ki server oldalon egy bejövő dekódolt csomagot, ha nincs hiányzó sorszám az adott csomag és a legutoljára kiirt csomag közt. Ellenkező esetben bufferba kerül.
+#####Data:
+Ide kerül az adat (8 bit)
 ###Referencia
 [The Implementation of Passive Covert Channels in the Linux Kernel](ftp://ftp.pastoutafait.org/pdf/passive-covert-channels-linux.pdf)
 
 ##Linux kernel modul implementáció
 TODO: Szöveg
 
+###Fileok:
+TODO: Szöveg
+####client-sender
+Python program, mely egy tetszőleges fájlt elküld a DNS id-ba ágyazva
+####utils/filecopy-test
+C test program, ami egy fájlt feldarabol 8 bites blokkokra
+
+
 ###Feladatok
 - [x] Betölthető kernel modul, ami netfilter hookot használ
 - [x] A kernel modul felismeri és parseolja a dns csomagokat
+- [x] C library, ami tetszőleges file-t feldarabol 8 bit-os blokkokra, és visszaadja az (c library)
+- [x] Kliens oldali program
+- [x] Kibontja a bejövő request id-jában szereplő kódolt információt
 - [] Beszúr egy cname rekordot egy visszaadás elött álló cname/a rekord helyett, majd kérdésre a cname/a rekordot küldeni
-- [] Kibontja a bejövő request id-jában szereplő kódolt információt
-- [] Csak akkor irja ki az információt, ha nincs kimaradt sorszámú csomag az adatátvitelben
 - [] Userland kommunikáció
 

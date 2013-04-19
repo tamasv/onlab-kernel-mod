@@ -13,7 +13,7 @@
 #include <net/tcp.h>
 #include <net/ip.h>
 
-#include "d3des.h"
+#include "lib/d3des.h"
 
 int cipher;	// 0 - no cipher, 1 - des
 

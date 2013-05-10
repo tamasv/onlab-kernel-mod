@@ -19,6 +19,23 @@ uint8_t read_byte(long p){
 	uint8_t ret;
 	fseek (inFile, sizeof(uint8_t) * p, SEEK_SET); // seek from the start
 	fread(&ret,sizeof(uint8_t),1,inFile);
+	printf("[FileRead debug] Value %u \n",ret);
+	return ret;
+}
+
+uint16_t set_action(uint8_t id, long p, long fsize){
+	uint16_t ret = id;
+
+	if(p == 0){//first packet
+		printf("[Action Debug] First packet %u / %u \n",p,fsize);
+		ret = ( ret | 0x4000);
+	}else if(p == fsize){//last packet
+		ret = ( ret | 0xC000);
+		printf("[Action Debug] Debug - Last packet %u / %u \n",p,fsize);
+	}else{
+		ret = ( ret | 0x8000);
+		printf("[Action Debug] Debug - Normal packet %u / %u \n",p,fsize);
+	}
 	return ret;
 }
 

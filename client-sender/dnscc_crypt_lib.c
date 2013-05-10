@@ -27,13 +27,12 @@ uint16_t dnscc_crypt (uint16_t id, uint16_t udps, uint16_t udpd, uint32_t ips, u
   des (seed, hash);
   uint16_t key = (*(uint16_t*)hash);
   if(debug){
-  	printf("DEBUG \n");
-	printf("id: %u \n", id);
-	printf("udp source port: %u \n", ntohs(udps));
-	printf("udp dest port: %u \n", ntohs(udpd));
-	printf("ip source: %u \n", ips);
-	printf("ip dest: %u \n", ipd);
-	printf("key: %u \n", key);  
+	printf("[DES DEBUG] id: %u \n", id);
+	printf("[DES DEBUG] udp source port: %u \n", ntohs(udps));
+	printf("[DES DEBUG] udp dest port: %u \n", ntohs(udpd));
+	printf("[DES DEBUG] ip source: %u \n", ips);
+	printf("[DES DEBUG] ip dest: %u \n", ipd);
+	printf("[DES DEBUG] key: %u \n", key);  
   }
   return key ^ id; 
 }

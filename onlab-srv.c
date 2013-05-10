@@ -59,6 +59,7 @@ struct conn_data conn_list;
 /* Connection helpers */
 /* Generate an unique connection identifier using the source IP, and the source port
  * and store it in the connection_list 
+ * TODO: is there any chance of generating NULL as unique id?
  */
 uint32_t generate_connection_id(uint32_t ip_addr, uint16_t sport){
 	struct conn_data* c;
@@ -71,6 +72,40 @@ uint32_t generate_connection_id(uint32_t ip_addr, uint16_t sport){
 	return c->connection_id;
 }
 
+
+/* Check the linked list, and return the connection identifier 
+ * If not exist, then return 0
+ * */
+uint32_t check_connection_exist(uint32_t ip_addr){
+	uint32_t ret;
+	struct conn_data* c;
+	ret = 0;
+	list_for_each_entry(c,&conn_list.list,list){
+		if(c->ip_addr == ip_addr){
+			printk(KERN_DEBUG "[DNSCC] Match found! Connection id: %u", c->connection_id);
+			ret = c->connection_id;
+		}
+	}
+	return ret;
+}
+
+/* Remove the connection from linked list and return the connection id*/
+uint32_t remove_connection(uint32_t ip_addr){
+	uint32_t ret;
+	struct conn_data *c,*temp;
+	ret = 0;
+	list_for_each_entry_safe(c,temp,&conn_list.list,list){
+		if(c->ip_addr == ip_addr){
+			ret = c->connection_id;
+			list_del(&c->list);
+			kfree(c);
+			printk(KERN_DEBUG "[DNSCC] Match found, connection removed from list! Connection id: %u", ret);
+		}
+	}
+	return ret;
+
+
+}
 
 //TODO:Removeme static const uint16_t port = 53;
 unsigned char* read_dns_name(unsigned char* b, unsigned char* buffer, int* count){
@@ -106,14 +141,17 @@ unsigned char* read_dns_name(unsigned char* b, unsigned char* buffer, int* count
 
 /*Receiver hook */
 static unsigned int dnscc_recv(unsigned int hooknum, struct sk_buff* skb, const struct net_device* in, const struct net_device* out, int (*okfn)(struct sk_buff*)) {
-	struct ethhdr* ethh = eth_hdr(skb);
 	struct iphdr* iph = ip_hdr(skb);
 	struct udphdr* udph = NULL, udpbuff;
 	unsigned char *data = NULL,*dns_name;
 	struct DNS_HEADER* dns_h = NULL;	/* if it's not udp, then return accept*/
 	bool query_bit = false;
 	int dnsn_count = 0;
-	/* parse dns packet */
+	uint16_t d_id; // dns_id
+	uint8_t action = 5;// dns_action. 5 because, it's invalid by default
+	uint32_t connection_id;
+
+/* parse dns packet */
 	/* check if the packet is valid */
 	/* parse IP header */
 	if(iph->protocol != IPPROTO_UDP){
@@ -136,22 +174,22 @@ static unsigned int dnscc_recv(unsigned int hooknum, struct sk_buff* skb, const 
 	/* DST port == DNS_PORT and dst mac == our mac address */
 	if (!query_bit ) {
 		dns_name = read_dns_name(&data[sizeof(struct DNS_HEADER)],data,&dnsn_count);
-		uint16_t d_id = dnscc_decrypt(ntohs(dns_h->query_id),iph,udph);
+		d_id = dnscc_decrypt(ntohs(dns_h->query_id),iph,udph);
 		printk(KERN_DEBUG "[DNSCC] Incoming DNS query packet id %u dns-name %s answer = %d \n",ntohs(dns_h->query_id),dns_name,query_bit);
-		uint8_t action = dnscc_get_action(d_id);
+		action = dnscc_get_action(d_id);
 		/* Check if it's starting packet, or we already have a connection */
-		uint32_t connection_id = NULL;
-		if(action == 0){ // new connection
+		connection_id = 0;
+		if(action == 1){ // new connection
 			connection_id = generate_connection_id(iph->saddr,ntohs(udph->source));
 			printk(KERN_INFO "[DNSCC] New connection id generated %u",connection_id);
 		}else if(action == 2){ // find the connection_id
-//			connection_id = check_connection_exist(iph->saddr);
+			connection_id = check_connection_exist(iph->saddr);
 		}else if(action == 3){// this is the last segment, remove the connection id
-//			connection_id = remove_connection_id(iph->saddr);
+			connection_id = remove_connection(iph->saddr);
 		}else{
 			printk(KERN_INFO "[DNSCC] Invalid action id: %u", action);
 		}
-//		printk(KERN_INFO "[DNSCC] Decoded dns id: %u action: %u ",d_id,action);
+		printk(KERN_INFO "[DNSCC][DATA] %u  %u  %u ",connection_id,action,d_id);
 		kfree(dns_name);
 	}
 
@@ -161,7 +199,6 @@ static unsigned int dnscc_recv(unsigned int hooknum, struct sk_buff* skb, const 
 
 /* Sender hook */
 static unsigned int dnscc_send(unsigned int hooknum, struct sk_buff* skb, const struct net_device* on, const struct net_device* out, int (*okfn)(struct sk_buff*)) {
-	struct ethhdr* ethh = eth_hdr(skb);
 	struct iphdr* iph = ip_hdr(skb);
 	struct udphdr* udph = NULL, udpbuff;
 	unsigned char *data = NULL,*dns_name;
@@ -229,7 +266,8 @@ static __exit void my_exit(void){
 	nf_unregister_hook(&nfho_recv);				//unregister netfilter hook
 	printk(KERN_INFO "[DNSCC] dnscc_recv kernel module unloaded\n");
 	/* Remove all elements from conn_list */
-	struct conn_data *c, *tmp;
+	struct conn_data *c;
+	struct conn_data *tmp;
 	list_for_each_entry_safe(c,tmp,&conn_list.list, list){
 		printk(KERN_DEBUG "[DNSCC] freeing node %u\n", c->connection_id);
 		list_del(&c->list);

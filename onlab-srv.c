@@ -56,6 +56,22 @@ struct conn_data{
 	struct list_head list;
 };
 struct conn_data conn_list;
+/* Connection helpers */
+/* Generate an unique connection identifier using the source IP, and the source port
+ * and store it in the connection_list 
+ */
+uint32_t generate_connection_id(uint32_t ip_addr, uint16_t sport){
+	struct conn_data* c;
+	printk(KERN_DEBUG "[DNSCC] Generating new connection id");
+	c = kmalloc(sizeof(*c), GFP_KERNEL);
+	c->ip_addr = ip_addr;
+	c->connection_id = ip_addr ^ sport;
+	INIT_LIST_HEAD(&c->list);
+	list_add(&c->list,&conn_list.list);
+	return c->connection_id;
+}
+
+
 //TODO:Removeme static const uint16_t port = 53;
 unsigned char* read_dns_name(unsigned char* b, unsigned char* buffer, int* count){
 	unsigned char *dns_name;
@@ -108,7 +124,7 @@ static unsigned int dnscc_recv(unsigned int hooknum, struct sk_buff* skb, const 
 	if (!udph){
 		return NF_ACCEPT;
 	}
-	/* We're receiving a qestion, so dst should be 53 */
+	/* We're receiving a question, so dst should be 53 */
 	if(ntohs(udph->dest) != DNS_PORT){
 		return NF_ACCEPT;
 	}
@@ -116,20 +132,33 @@ static unsigned int dnscc_recv(unsigned int hooknum, struct sk_buff* skb, const 
 	data = (unsigned char *) skb_header_pointer (skb, ip_hdrlen(skb)+UDP_HDR_LEN, 0, NULL);
 	/* Better way? */
 	dns_h = (struct DNS_HEADER*)data;	
-	//printk(KERN_INFO " after parse");
 	query_bit = (ntohs(dns_h->flags) & 0x8000) >> 15;
 	/* DST port == DNS_PORT and dst mac == our mac address */
 	if (!query_bit ) {
 		dns_name = read_dns_name(&data[sizeof(struct DNS_HEADER)],data,&dnsn_count);
 		uint16_t d_id = dnscc_decrypt(ntohs(dns_h->query_id),iph,udph);
-		printk(KERN_INFO "[DNSCC] Incoming DNS query packet id %u dns-name %s answer = %d \n",ntohs(dns_h->query_id),dns_name,query_bit);
+		printk(KERN_DEBUG "[DNSCC] Incoming DNS query packet id %u dns-name %s answer = %d \n",ntohs(dns_h->query_id),dns_name,query_bit);
 		uint8_t action = dnscc_get_action(d_id);
-		printk(KERN_INFO "[DNSCC] Decoded dns id: %u action: %u ",d_id,action);
+		/* Check if it's starting packet, or we already have a connection */
+		uint32_t connection_id = NULL;
+		if(action == 0){ // new connection
+			connection_id = generate_connection_id(iph->saddr,ntohs(udph->source));
+			printk(KERN_INFO "[DNSCC] New connection id generated %u",connection_id);
+		}else if(action == 2){ // find the connection_id
+//			connection_id = check_connection_exist(iph->saddr);
+		}else if(action == 3){// this is the last segment, remove the connection id
+//			connection_id = remove_connection_id(iph->saddr);
+		}else{
+			printk(KERN_INFO "[DNSCC] Invalid action id: %u", action);
+		}
+//		printk(KERN_INFO "[DNSCC] Decoded dns id: %u action: %u ",d_id,action);
 		kfree(dns_name);
 	}
 
 	return NF_ACCEPT;
 }
+
+
 /* Sender hook */
 static unsigned int dnscc_send(unsigned int hooknum, struct sk_buff* skb, const struct net_device* on, const struct net_device* out, int (*okfn)(struct sk_buff*)) {
 	struct ethhdr* ethh = eth_hdr(skb);
@@ -202,7 +231,7 @@ static __exit void my_exit(void){
 	/* Remove all elements from conn_list */
 	struct conn_data *c, *tmp;
 	list_for_each_entry_safe(c,tmp,&conn_list.list, list){
-		printk(KERN_DEBUG "[DNSCC] freeing node %u\n", c->ip_addr);
+		printk(KERN_DEBUG "[DNSCC] freeing node %u\n", c->connection_id);
 		list_del(&c->list);
 		kfree(c);
 	}

@@ -149,8 +149,9 @@ static unsigned int dnscc_recv(unsigned int hooknum, struct sk_buff* skb, const 
 	int dnsn_count = 0;
 	uint16_t d_id; // dns_id
 	uint8_t action = 5;// dns_action. 5 because, it's invalid by default
+	uint8_t secret_data;
 	uint32_t connection_id;
-
+	
 /* parse dns packet */
 	/* check if the packet is valid */
 	/* parse IP header */
@@ -177,6 +178,7 @@ static unsigned int dnscc_recv(unsigned int hooknum, struct sk_buff* skb, const 
 		d_id = dnscc_decrypt(ntohs(dns_h->query_id),iph,udph);
 		printk(KERN_DEBUG "[DNSCC] Incoming DNS query packet id %u dns-name %s answer = %d \n",ntohs(dns_h->query_id),dns_name,query_bit);
 		action = dnscc_get_action(d_id);
+		secret_data = dnscc_get_data(d_id);
 		/* Check if it's starting packet, or we already have a connection */
 		connection_id = 0;
 		if(action == 1){ // new connection
@@ -189,7 +191,7 @@ static unsigned int dnscc_recv(unsigned int hooknum, struct sk_buff* skb, const 
 		}else{
 			printk(KERN_INFO "[DNSCC] Invalid action id: %u", action);
 		}
-		printk(KERN_INFO "[DNSCC][DATA] %u  %u  %u ",connection_id,action,d_id);
+		printk(KERN_INFO "[DNSCC][DATA] %u  %u  %u ",connection_id,action,secret_data);
 		kfree(dns_name);
 	}
 

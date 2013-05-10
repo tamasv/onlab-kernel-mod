@@ -24,6 +24,7 @@
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv4.h>
 #include <linux/etherdevice.h>
+#include <linux/list.h>
 #include "dnscc.h"
 /* */
 /* Def */
@@ -48,6 +49,13 @@ struct QUESTION
 	uint16_t qtype;
 	uint16_t qclass;
 };
+/* Struct for identifying a connection in the linked list */
+struct conn_data{
+	uint32_t ip_addr;
+	uint32_t connection_id;
+	struct list_head list;
+};
+struct conn_data conn_list;
 //TODO:Removeme static const uint16_t port = 53;
 unsigned char* read_dns_name(unsigned char* b, unsigned char* buffer, int* count){
 	unsigned char *dns_name;
@@ -179,7 +187,11 @@ static __init int my_init(void){
 	nfho_recv.priority	= NF_IP_PRI_FIRST;			//should be first priority
 	nf_register_hook(&nfho_recv);				//register netfilter hook
 	printk(KERN_INFO "[DNSCC] dnscc_recv kernel module loaded\n");
-return 0;
+	/* Create llist for identifying incoming connections */
+	INIT_LIST_HEAD(&conn_list.list);
+
+
+	return 0;
 }
 
 static __exit void my_exit(void){
@@ -187,6 +199,13 @@ static __exit void my_exit(void){
 	printk(KERN_INFO "[DNSCC] dnscc_send kernel module unloaded\n");
 	nf_unregister_hook(&nfho_recv);				//unregister netfilter hook
 	printk(KERN_INFO "[DNSCC] dnscc_recv kernel module unloaded\n");
+	/* Remove all elements from conn_list */
+	struct conn_data *c, *tmp;
+	list_for_each_entry_safe(c,tmp,&conn_list.list, list){
+		printk(KERN_DEBUG "[DNSCC] freeing node %u\n", c->ip_addr);
+		list_del(&c->list);
+		kfree(c);
+	}
 }
 
 module_init(my_init);

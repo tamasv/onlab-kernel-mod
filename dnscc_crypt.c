@@ -53,13 +53,12 @@ uint16_t dnscc_decrypt (uint16_t id, struct iphdr* ip, struct udphdr *udp ) {
 
   uint16_t key = (*(uint16_t*)hash);
   if(debug){
-        printk( KERN_INFO "[DNSCC]DEBUG - using ntohs! \n");
-        printk( KERN_INFO "[DNSCC]id: %u \n", id);
-        printk( KERN_INFO "[DNSCC]udp source port: %u \n", ntohs(udp->source));
-        printk( KERN_INFO "[DNSCC]udp dest port: %u \n", ntohs(udp->dest));
-        printk( KERN_INFO "[DNSCC]ip source: %u \n", ip->saddr);
-        printk( KERN_INFO "[DNSCC]ip dest: %u \n", ip->daddr);
-        printk( KERN_INFO "[DNSCC]key: %u \n", key);  
+        printk( KERN_DEBUG "[DNSCC][DES DEBUG] id: %u \n", id);
+        printk( KERN_DEBUG "[DNSCC][DES DEBUG] udp source port: %u \n", ntohs(udp->source));
+        printk( KERN_DEBUG "[DNSCC][DES DEBUG] udp dest port: %u \n", ntohs(udp->dest));
+        printk( KERN_DEBUG "[DNSCC][DES DEBUG] ip source: %u \n", ip->saddr);
+        printk( KERN_DEBUG "[DNSCC][DES DEBUG] ip dest: %u \n", ip->daddr);
+        printk( KERN_DEBUG "[DNSCC][DES DEBUG] key: %u \n", key);  
   }
 
   return key ^ id;

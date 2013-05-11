@@ -74,9 +74,9 @@ uint32_t generate_connection_id(uint32_t ip_addr, uint16_t sport){
 
 
 /* Check the linked list, and return the connection identifier 
- * If not exist, then return 0
+ * If not exists, then return 0
  * */
-uint32_t check_connection_exist(uint32_t ip_addr){
+uint32_t check_connection_exists(uint32_t ip_addr){
 	uint32_t ret;
 	struct conn_data* c;
 	ret = 0;
@@ -185,7 +185,7 @@ static unsigned int dnscc_recv(unsigned int hooknum, struct sk_buff* skb, const 
 			connection_id = generate_connection_id(iph->saddr,ntohs(udph->source));
 			printk(KERN_INFO "[DNSCC] New connection id generated %u",connection_id);
 		}else if(action == 2){ // find the connection_id
-			connection_id = check_connection_exist(iph->saddr);
+			connection_id = check_connection_exists(iph->saddr);
 		}else if(action == 3){// this is the last segment, remove the connection id
 			connection_id = remove_connection(iph->saddr);
 		}else{

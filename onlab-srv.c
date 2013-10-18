@@ -64,7 +64,7 @@ struct conn_data conn_list;
 uint32_t generate_connection_id(uint32_t ip_addr, uint16_t sport){
 	struct conn_data* c;
 	printk(KERN_DEBUG "[DNSCC] Generating new connection id");
-	c = kmalloc(sizeof(*c), GFP_KERNEL);
+	c = kmalloc(sizeof(*c), GFP_DMA);
 	c->ip_addr = ip_addr;
 	c->connection_id = ip_addr ^ sport;
 	INIT_LIST_HEAD(&c->list);

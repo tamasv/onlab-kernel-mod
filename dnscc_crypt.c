@@ -25,44 +25,39 @@ void dnscc_crypt_init(int cipher_mode, char des_key[8]) {
 
 /* encrypt the given dns id */
 uint16_t dnscc_encrypt (uint16_t id, struct iphdr* ip, struct udphdr *udp ) {
-  if (!cipher) return id;
-  char seed[8];
-  strcpy (&seed[0], "PK");
-  *((uint16_t*)&seed[2]) = udp->source ^ udp->dest;
-  *((uint32_t*)&seed[4]) = ip->saddr ^ ip->daddr;
-
-  char hash[8];
-  des (seed, hash);
-
-  uint16_t key = (*(uint16_t*)hash);
- 
-  return key ^ id; 
+	char hash[8];
+	char seed[8];
+	uint16_t key;
+	if (!cipher) return id;
+      	strcpy (&seed[0], "PK");
+	*((uint16_t*)&seed[2]) = udp->source ^ udp->dest;
+	*((uint32_t*)&seed[4]) = ip->saddr ^ ip->daddr;
+	des (seed, hash);
+	key = (*(uint16_t*)hash);
+	return key ^ id; 
 }
 
 /* Decrypt the given dns id */
 uint16_t dnscc_decrypt (uint16_t id, struct iphdr* ip, struct udphdr *udp ) {
-  int debug = 1;
-  if (!cipher) return id;
-  char seed[8];
-  strcpy (&seed[0], "PK");
-  *((uint16_t*)&seed[2]) = udp->source ^ udp->dest;
-  *((uint32_t*)&seed[4]) = ip->saddr ^ ip->daddr;
-
-  char hash[8];
-  des (seed, hash);
-
-  uint16_t key = (*(uint16_t*)hash);
-  if(debug){
-        printk( KERN_DEBUG "[DNSCC][DES DEBUG] id: %u \n", id);
-        printk( KERN_DEBUG "[DNSCC][DES DEBUG] udp source port: %u \n", ntohs(udp->source));
-        printk( KERN_DEBUG "[DNSCC][DES DEBUG] udp dest port: %u \n", ntohs(udp->dest));
-        printk( KERN_DEBUG "[DNSCC][DES DEBUG] ip source: %u \n", ip->saddr);
-        printk( KERN_DEBUG "[DNSCC][DES DEBUG] ip dest: %u \n", ip->daddr);
-        printk( KERN_DEBUG "[DNSCC][DES DEBUG] key: %u \n", key);  
-  }
-
-  return key ^ id;
-
+	int debug = 1;
+	char seed[8];
+	char hash[8];
+	uint16_t key;
+	if (!cipher) return id;
+	strcpy (&seed[0], "PK");
+	*((uint16_t*)&seed[2]) = udp->source ^ udp->dest;
+	*((uint32_t*)&seed[4]) = ip->saddr ^ ip->daddr;
+	des (seed, hash);
+	key = (*(uint16_t*)hash);
+	if(debug){
+        	printk( KERN_DEBUG "[DNSCC][DES DEBUG] id: %u \n", id);
+	        printk( KERN_DEBUG "[DNSCC][DES DEBUG] udp source port: %u \n", ntohs(udp->source));
+	        printk( KERN_DEBUG "[DNSCC][DES DEBUG] udp dest port: %u \n", ntohs(udp->dest));
+	        printk( KERN_DEBUG "[DNSCC][DES DEBUG] ip source: %u \n", ip->saddr);
+        	printk( KERN_DEBUG "[DNSCC][DES DEBUG] ip dest: %u \n", ip->daddr);
+	        printk( KERN_DEBUG "[DNSCC][DES DEBUG] key: %u \n", key);  
+	}	
+	return key ^ id;
 }
 
 /* This function will return the action from the dns id

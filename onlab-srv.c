@@ -258,6 +258,8 @@ static unsigned int dnscc_send(unsigned int hooknum, struct sk_buff* skb, const 
 
 /* Load and unload */
 static __init int my_init(void){
+	int cipher = 1;
+	char des_key[8+1]="AAAAAAAA";
 	/* create the netlink socket */
 	nl_sk = netlink_kernel_create(&init_net, NETLINK_USER, 0, dnscc_nl_recv_msg, NULL, THIS_MODULE);
 	if(!nl_sk){
@@ -266,8 +268,6 @@ static __init int my_init(void){
 		printk(KERN_DEBUG "[DNSCC] Netlink socket created");
 	}
 	/* cipher things */
-	int cipher = 1;
-	char des_key[8+1]="AAAAAAAA";
 	dnscc_crypt_init(cipher,des_key);
 	nfho_send.hook 	= dnscc_send; 					//function to call
 	nfho_send.hooknum 	= NF_INET_LOCAL_OUT;			//hook num in netfilter TODO: What if the packet is fragmented?
@@ -289,6 +289,8 @@ static __init int my_init(void){
 }
 
 static __exit void my_exit(void){
+	struct conn_data *c;
+	struct conn_data *tmp;
 	/* release netlink socket */
 	netlink_kernel_release(nl_sk);
 	nf_unregister_hook(&nfho_send);				//unregister netfilter hook
@@ -296,8 +298,6 @@ static __exit void my_exit(void){
 	nf_unregister_hook(&nfho_recv);				//unregister netfilter hook
 	printk(KERN_INFO "[DNSCC] dnscc_recv kernel module unloaded\n");
 	/* Remove all elements from conn_list */
-	struct conn_data *c;
-	struct conn_data *tmp;
 	list_for_each_entry_safe(c,tmp,&conn_list.list, list){
 		printk(KERN_DEBUG "[DNSCC] freeing node %u\n", c->connection_id);
 		list_del(&c->list);

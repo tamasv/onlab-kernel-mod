@@ -243,17 +243,17 @@ static __init int my_init(void){
 	int cipher = 1;
 	char des_key[8+1]="AAAAAAAA";
 	dnscc_crypt_init(cipher,des_key);
-	nfho_send.hook 	= dnscc_send; 				//function to call
-	nfho_send.hooknum 	= NF_INET_LOCAL_OUT;					//hook num in netfilter TODO: What if the packet is fragmented?
+	nfho_send.hook 	= dnscc_send; 					//function to call
+	nfho_send.hooknum 	= NF_INET_LOCAL_OUT;			//hook num in netfilter TODO: What if the packet is fragmented?
 	nfho_send.pf		= NFPROTO_IPV4;				//IPV4
 	nfho_send.priority	= NF_IP_PRI_FIRST;			//should be first priority
-	nf_register_hook(&nfho_send);				//register netfilter hook
+	nf_register_hook(&nfho_send);					//register netfilter hook
 	printk(KERN_INFO "[DNSCC] dnscc_send kernel module loaded\n");
-	nfho_recv.hook 	= dnscc_recv; 				//function to call
-	nfho_recv.hooknum 	= NF_INET_PRE_ROUTING;					//hook num in netfilter TODO: What if the packet is fragmented?
+	nfho_recv.hook 	= dnscc_recv; 					//function to call
+	nfho_recv.hooknum 	= NF_INET_PRE_ROUTING;			//hook num in netfilter TODO: What if the packet is fragmented?
 	nfho_recv.pf		= NFPROTO_IPV4;				//IPV4
 	nfho_recv.priority	= NF_IP_PRI_FIRST;			//should be first priority
-	nf_register_hook(&nfho_recv);				//register netfilter hook
+	nf_register_hook(&nfho_recv);					//register netfilter hook
 	printk(KERN_INFO "[DNSCC] dnscc_recv kernel module loaded\n");
 	/* Create llist for identifying incoming connections */
 	INIT_LIST_HEAD(&conn_list.list);

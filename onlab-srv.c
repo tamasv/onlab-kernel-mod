@@ -70,7 +70,7 @@ static void dnscc_nl_recv_msg(struct sk_buff *skb){
 	struct sk_buff *skb_out;
 	int msg_size;
 	int res;
-
+	printk(KERN_INFO "[DNSCC]Netlink MSG!"); //remove me
 	/* decode received message */
 	nlh = (struct nlmsghdr *)skb->data;
 	printk(KERN_INFO "Netlink socket received message data: %s ", (char *)nlmsg_data(nlh));

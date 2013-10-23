@@ -2,9 +2,9 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <netlink/netlink.h>
-#include <get_file_msg.c>
-#include <dnscc_msg.c>
-
+#include <get_file_msg.h>
+#include <dnscc_msg.h>
+#include <arpa/inet.h>
 #define DNSCC_NETLINK_MSG (0x15)
 
 
@@ -15,7 +15,7 @@ main(int argc, char *argv[]){
 	int ret;
 	bool args_ok = true;
 	int command;
-	char* ip;
+	struct in_addr ip;
 	char* local_file;
 	char* remote_file;
 /* Check arguments */
@@ -25,7 +25,10 @@ main(int argc, char *argv[]){
 		args_ok = false;
 		return EXIT_FAILURE;
 	}
-	ip = argv[1];
+	if(inet_aton(argv[1],&ip) <= 0 ){
+		printf("Invalid ip");
+		return EXIT_FAILURE;
+	}
 	command = atoi(argv[2]);
 	switch(command){
 		case 1: //validate 2 more params
@@ -36,7 +39,7 @@ main(int argc, char *argv[]){
 				data.local_file = argv[4];
 				msg.type = 1;
 				msg.data = &data;
-				printf("Get filename %s from %s and save as %s \n",data.remote_file,data.ip,data.local_file);
+				printf("Get filename %s from %s and save as %s \n",data.remote_file,inet_ntoa(data.ip),data.local_file);
 			}else{
 				printf("Usage: dnscc-cli $ip 1 $remote_file $local_file \n");
 				return EXIT_FAILURE;

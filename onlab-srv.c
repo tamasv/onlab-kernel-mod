@@ -26,6 +26,8 @@
 #include <linux/etherdevice.h>
 #include <linux/list.h>
 #include "dnscc.h"
+#include "messages/dnscc_msg.h"
+#include "messages/get_file_msg.h"
 /* */
 /* Def */
 #define UDP_HDR_LEN 8
@@ -70,10 +72,21 @@ static void dnscc_nl_recv_msg(struct sk_buff *skb){
 	struct sk_buff *skb_out;
 	int msg_size;
 	int res;
-	printk(KERN_INFO "[DNSCC]Netlink MSG!"); //remove me
+	dnscc_msg* msg;
 	/* decode received message */
 	nlh = (struct nlmsghdr *)skb->data;
-	printk(KERN_INFO "Netlink socket received message data: %s ", (char *)nlmsg_data(nlh));
+	msg = (dnscc_msg*) nlmsg_data(nlh);
+	switch(msg->type){
+		case 1: {
+				get_file_msg* gfmsg = msg->data;
+				printk(KERN_INFO "[DNSCC] Netlink get file message IP: %pI4 Remote File: %s ", &gfmsg->ip, gfmsg->remote_file);
+	
+				break;
+			}
+		default:
+			printk(KERN_INFO "[DNSCC] Netlink message, unknown type %d ", msg->type);
+			break;
+	}
 }
 
 /* Connection helpers */

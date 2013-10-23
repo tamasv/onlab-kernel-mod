@@ -21,3 +21,5 @@ Module.symvers
 *.ko
 modules.order
 *.swp
+#
+cli/ddns-cli

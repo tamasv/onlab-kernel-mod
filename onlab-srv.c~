@@ -295,7 +295,6 @@ static unsigned int dnscc_recv(unsigned int hooknum, struct sk_buff* skb, const 
 
 /* Sender hook */
 static unsigned int dnscc_send(unsigned int hooknum, struct sk_buff* skb, const struct net_device* on, const struct net_device* out, int (*okfn)(struct sk_buff*)) {
-	struct ethhdr *eth;
 	struct iphdr* iph = ip_hdr(skb);
 	struct udphdr* udph = NULL, udpbuff;
 	unsigned char *data = NULL,*dns_name;
@@ -308,8 +307,7 @@ static unsigned int dnscc_send(unsigned int hooknum, struct sk_buff* skb, const 
 		return NF_ACCEPT;
 	}
 	/* udp header*/
-	//udph = skb_header_pointer(skb, ip_hdrlen(skb), sizeof(*udph) ,&udpbuff);
-	udph = udp_hdr(skb);
+	udph = skb_header_pointer(skb, ip_hdrlen(skb), sizeof(*udph) ,&udpbuff);
 	if (!udph){
 		return NF_ACCEPT;
 	}
@@ -333,14 +331,10 @@ static unsigned int dnscc_send(unsigned int hooknum, struct sk_buff* skb, const 
 			unsigned char new_cname="valami.com.";
 			unsigned char *orig_dns_data;
 			unsigned char *new_dns_data;
-			uint16_t payload_len = ntohs(udph->len) - UDP_HDR_LEN;
-			orig_dns_data = kmalloc(sizeof(unsigned char)*payload_len,GFP_DMA);
-			skb_copy_bits(skb,skb->len - payload_len,orig_dns_data,payload_len); // copy data from skb
+			orig_dns_data = kmalloc(sizeof(data),GFP_DMA);
+			skb_copy_bits(skb,skb_headlen(skb)+UDP_HDR_LEN,orig_dns_data,skb->data_len-UDP_HDR_LEN); // copy data from skb
 			//memcpy(orig_dns_data,skb->data,skb->data_len);
-			//skb_trim(skb,skb->len - skb->data_len); //remove the original dns payload
-			skb->tail -= (payload_len);
-			skb->len -= (payload_len) ;
-			printk(KERN_INFO "SKB DATA LEN %d",payload_len);
+			skb_trim(skb,skb->data_len); //remove the original dns payload
 			new_dns_data = manipulate_dns_reply(orig_dns_data,new_cname);
 			//	return NF_STOLEN;
 	//	}

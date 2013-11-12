@@ -245,10 +245,10 @@ uint16_t manipulate_dns_reply(unsigned char* data, unsigned char* command, unsig
 	unsigned char *qname, *nqname;
 	unsigned char* dns_name;
 	unsigned char *dpointer,*nspointer;
-        struct RR ar[10],*new_ar,nsr;
+        struct RR ar[10],*new_ar,*olda_ar,nsr;
 	int temp;  // domain name reader temp var
 	int dnsn_count;//question dns name count
-	int i,j;
+	int i,j,ip_ar_num = 0;
 	uint16_t nsr_size = 0;
 
 	temp =0;
@@ -270,7 +270,19 @@ uint16_t manipulate_dns_reply(unsigned char* data, unsigned char* command, unsig
 		printk(KERN_INFO "%x %x %x %x",dpointer[0],dpointer[1]);
 		printk(KERN_INFO "%d %d %d %d",ntohs(ar[i].rr_data->type),ntohs(ar[i].rr_data->rdlength),ntohs(ar[i].rr_data->class),ntohs(ar[i].rr_data->ttl));
 
+		// If it's an IPV4 and A record, then we need it :)
+		if(ntohs(ar[i].rr_data->type) == 1){
+			ar[i].rdata = (unsigned char*)kmalloc(ntohs(ar[i].rr_data->rdlength),GFP_DMA);
+			for(j=0;j<ntohs(ar[i].rr_data->rdlength);j++){
+				ar[i].rdata[j] = dpointer[j];
+				printk(KERN_INFO" ar data %x ",ar[i].rdata[j]);
+			} 
+//	                ar[i].rdata[ntohs(answers[i].resource->data_len)] = '\0';
+			ip_ar_num = i;	
+		}
+
 		dpointer = dpointer + ntohs(ar[i].rr_data->rdlength);
+
 	}
 
 	//dpointer--; // Don't know why should i decrement, but it's working :)
@@ -298,7 +310,7 @@ uint16_t manipulate_dns_reply(unsigned char* data, unsigned char* command, unsig
 	ndns_h = (struct DNS_HEADER *)new_dns_data;
 	*ndns_h = *dns_h;			// use the old header
 	writer += sizeof(struct DNS_HEADER);
-	ndns_h->ancount = htons(1);
+	ndns_h->ancount = htons(2);
 	ndns_h->nscount = htons(1);
 	ndns_h->arcount = htons(0);
 	/* qname */
@@ -314,6 +326,20 @@ uint16_t manipulate_dns_reply(unsigned char* data, unsigned char* command, unsig
 	writer += sizeof(struct RR_DATA);
 	memcpy(&new_dns_data[writer],command,strlen((const char*)command)+1);
 	writer += strlen((const char*)command)+1;
+	/* and the valid A record */
+	olda_ar = (unsigned char *)&new_dns_data[writer];
+	memcpy(olda_ar,command,strlen((const char*)command)+1);//first answer here, so inject our fake cname
+	printk(KERN_INFO"new ar 2 %x %x %d",new_dns_data[writer],new_dns_data[writer+1],writer);
+	writer += strlen((const char*)command)+1;
+	printk(KERN_INFO"debug 2 %d",writer);
+	memcpy(&new_dns_data[writer],ar[ip_ar_num].rr_data,sizeof(struct RR_DATA));
+	printk(KERN_INFO"debug 3 %d",writer);
+	writer += sizeof(struct RR_DATA);
+	printk(KERN_INFO"debug 4 %d",writer);
+	memcpy(&new_dns_data[writer],ar[ip_ar_num].rdata,ntohs(ar[ip_ar_num].rr_data->rdlength));
+	printk(KERN_INFO"debug 5 %d",writer);
+	writer += ntohs(ar[ip_ar_num].rr_data->rdlength);
+	printk(KERN_INFO"debug 6 %d",writer);
 	/* copy first ns ans */
 	nsr.name = read_dns_name(dpointer,data,&temp);
 	printk(KERN_INFO "%x %x %x %x",dpointer[0],dpointer[1],dpointer[2],dpointer[3]);

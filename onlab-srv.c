@@ -216,14 +216,15 @@ unsigned char* correct_name_ptr(unsigned long writer, unsigned char* buffer, int
 
 			// if offset > answer_start , then we should correct it!
 			if(offset > ar_start){
-				printk(KERN_INFO"Correcting pointer before -> %x %x",*read,*(read+1));
-				new_offset = offset + ptr_offset;
-				printk(KERN_INFO"Correcting pointer before -> %d %d ",offset,new_offset);
+				printk(KERN_INFO"Correcting pointer before -> %x %x %d",*read,*(read+1),writer);
+				new_offset = offset + ptr_offset+49152;
+				new_offset = htons(new_offset);
+				printk(KERN_INFO"Correcting pointer before -> %d %d %d",offset,new_offset,writer);
 				memcpy(&buffer[writer],&new_offset,sizeof(uint16_t));
 				offset = (*read)*256 + *(read+1) - 49152; //49152 = 11000000 00000000 ;)
-				printk(KERN_INFO"Correcting pointer after -> %x %x",*(read),*(read+1));
+				printk(KERN_INFO"Correcting pointer after -> %x %x %d",*(read),*(read+1),offset);
 			}
-			writer = offset - 1;
+			writer = offset;
 			read = &buffer[writer];
 			jumped = 1; //we have jumped to another location so counting wont go up!
 		}
@@ -432,11 +433,14 @@ uint16_t manipulate_dns_reply(unsigned char* data, unsigned char* command, unsig
 	for(i=0;i<ntohs(ndns_h->ancount);i++)
 	{
 		ar[i].name=correct_name_ptr(writer,new_dns_data,&temp,pointer_correct,old_answer_start);
+		printk(KERN_INFO"temp %d",temp);
 		writer+=temp;
-		ar[i].rr_data=(struct RR_DATA*)(&new_dns_data[writer]);
+		ar[i].rr_data=(struct RR_DATA*)&new_dns_data[writer];
 		writer+=sizeof(struct RR_DATA);
 		ar[i].rdata=correct_name_ptr(writer,new_dns_data,&temp,pointer_correct,old_answer_start);
 		writer+=temp;
+		printk(KERN_INFO"temp rrdata %d",temp);
+
 	}
  
     //read additional
@@ -444,7 +448,7 @@ uint16_t manipulate_dns_reply(unsigned char* data, unsigned char* command, unsig
 	{
 		ar[i].name=correct_name_ptr(writer,new_dns_data,&temp,pointer_correct,old_answer_start);
 		writer+=temp;
-		ar[i].rr_data=(struct RR_DATA*)(writer);
+		ar[i].rr_data=(struct RR_DATA*)&new_dns_data[writer];
         	writer+=sizeof(struct RR_DATA);
 		if(ntohs(ar[i].rr_data->type)!=1)
 		{

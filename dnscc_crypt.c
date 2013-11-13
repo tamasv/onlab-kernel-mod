@@ -39,7 +39,7 @@ uint16_t dnscc_encrypt (uint16_t id, struct iphdr* ip, struct udphdr *udp ) {
 
 /* Decrypt the given dns id */
 uint16_t dnscc_decrypt (uint16_t id, struct iphdr* ip, struct udphdr *udp ) {
-	int debug = 1;
+	int debug = 0;
 	char seed[8];
 	char hash[8];
 	uint16_t key;

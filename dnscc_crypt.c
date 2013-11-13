@@ -1,8 +1,12 @@
 /* From nushu 
  *
  */
+#ifndef MODULE
 #define MODULE
+#endif
+#ifndef __KERNEL__
 #define __KERNEL__
+#endif
 
 #ifdef MODVERSIONS
 #include <linux/modversions.h>

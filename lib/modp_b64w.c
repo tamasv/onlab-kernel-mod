@@ -65,7 +65,7 @@
  * using it should only be for compatability with a 3rd party.
  * Also, 'no padding' is not tested!
  */
-#define DOPAD 1
+//#define DOPAD 1
 
 /*
  * if we aren't doing padding

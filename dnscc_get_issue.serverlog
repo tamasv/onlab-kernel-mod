@@ -1,0 +1,125 @@
+Nov 19 22:31:43 onlab-dnss kernel: [ 1002.013669] [DNSCC] dnscc_send kernel module unloaded
+Nov 19 22:31:43 onlab-dnss kernel: [ 1002.017197] [DNSCC] dnscc_recv kernel module unloaded
+Nov 19 22:31:45 onlab-dnss kernel: [ 1004.022115] [DNSCC] Netlink socket created
+Nov 19 22:31:45 onlab-dnss kernel: [ 1004.022967] [DNSCC] dnscc_send kernel module loaded
+Nov 19 22:31:45 onlab-dnss kernel: [ 1004.025485] [DNSCC] dnscc_recv kernel module loaded
+Nov 19 22:31:58 onlab-dnss kernel: [ 1017.240522] remote file length 15
+Nov 19 22:31:58 onlab-dnss kernel: [ 1017.241199] [DNSCC] Netlink get file message IP: 192.168.52.34 Remote File: /etc/issue.net 
+Nov 19 22:31:58 onlab-dnss kernel: [ 1017.243917] Command get/etc/issue.net
+Nov 19 22:32:08 onlab-dnss kernel: [ 1017.245556] enc command Z2V0L2V0Yy9pc3N1ZS5uZXQA 24 len
+Nov 19 22:32:08 onlab-dnss kernel: [ 1026.535877] [DNSCC] Incoming DNS query packet id 57970 dns-name lb.fruitflan.com answer = 0 
+Nov 19 22:32:08 onlab-dnss kernel: [ 1026.538052] [DNSCC] Incoming DNS query packet id 48410 dns-name lb.fruitflan.com answer = 0 
+Nov 19 22:32:08 onlab-dnss kernel: [ 1026.539289] [DNSCC] Outgoing DNS answer packet id 57970 dns-name lb.fruitflan.com answer = 1 
+Nov 19 22:32:08 onlab-dnss kernel: [ 1026.540359] [DNSCC] Match found! Command for 192.168.52.34
+Nov 19 22:32:08 onlab-dnss kernel: [ 1026.540688] [DNSCC] C&C command found for 192.168.52.34 replacing original DNS reply
+Nov 19 22:32:08 onlab-dnss kernel: [ 1026.542201] [DNSCC] Command Z2V0L2V0Yy9pc3N1ZS5uZXQA for 192.168.52.34
+Nov 19 22:32:08 onlab-dnss kernel: [ 1026.544080] 1new dns size: 138 
+Nov 19 22:32:08 onlab-dnss kernel: [ 1026.545574] SKB DATA LEN 134
+Nov 19 22:32:08 onlab-dnss kernel: [ 1026.547019] [DNSCC] Modify dns packet - dns ans count: 1
+Nov 19 22:32:08 onlab-dnss kernel: [ 1026.548868]  ar data 4e 
+Nov 19 22:32:08 onlab-dnss kernel: [ 1026.550308]  ar data 2e 
+Nov 19 22:32:08 onlab-dnss kernel: [ 1026.551704]  ar data 18 
+Nov 19 22:32:08 onlab-dnss kernel: [ 1026.553184]  ar data 26 
+Nov 19 22:32:08 onlab-dnss kernel: [ 1026.554610] fake comm c000 - c00
+Nov 19 22:32:08 onlab-dnss kernel: [ 1026.555561] 2new dns size: 89 
+Nov 19 22:32:08 onlab-dnss kernel: [ 1026.556239]  ip tot 162 payload 134 new dns 89
+Nov 19 22:32:08 onlab-dnss kernel: [ 1026.557010] [DNSCC] Removing command Z2V0L2V0Yy9pc3N1ZS5uZXQA for 192.168.52.34 
+Nov 19 22:32:08 onlab-dnss kernel: [ 1026.560053] [DNSCC] Outgoing DNS answer packet id 48410 dns-name lb.fruitflan.com answer = 1 
+Nov 19 22:32:08 onlab-dnss kernel: [ 1026.646816] [DNSCC] Incoming DNS query packet id 19094 dns-name index.hu answer = 0 
+Nov 19 22:32:08 onlab-dnss kernel: [ 1026.648390] [DNSCC] Generating new connection id
+Nov 19 22:32:08 onlab-dnss kernel: [ 1026.648897] [DNSCC] New connection id generated 573839084
+Nov 19 22:32:08 onlab-dnss kernel: [ 1026.650103] [DNSCC][DATA] 573839084  1  44 
+Nov 19 22:32:08 onlab-dnss kernel: [ 1026.651203] [DNSCC] Incoming DNS query packet id 35511 dns-name index.hu answer = 0 
+Nov 19 22:32:08 onlab-dnss kernel: [ 1026.653499] [DNSCC] Match found! Connection id: 573839084
+Nov 19 22:32:08 onlab-dnss kernel: [ 1026.654036] [DNSCC][DATA] 573839084  2  65 
+Nov 19 22:32:08 onlab-dnss kernel: [ 1026.663962] [DNSCC] Outgoing DNS answer packet id 19094 dns-name index.hu answer = 1 
+Nov 19 22:32:08 onlab-dnss kernel: [ 1026.666645] [DNSCC] Outgoing DNS answer packet id 35511 dns-name index.hu answer = 1 
+Nov 19 22:32:09 onlab-dnss kernel: [ 1027.469637] [DNSCC] Incoming DNS query packet id 51608 dns-name ad.adverticum.net answer = 0 
+Nov 19 22:32:09 onlab-dnss kernel: [ 1027.471268] [DNSCC] Match found! Connection id: 573839084
+Nov 19 22:32:09 onlab-dnss kernel: [ 1027.471783] [DNSCC][DATA] 573839084  2  62 
+Nov 19 22:32:09 onlab-dnss kernel: [ 1027.472888] [DNSCC] Incoming DNS query packet id 51603 dns-name ad.adverticum.net answer = 0 
+Nov 19 22:32:09 onlab-dnss kernel: [ 1027.475187] [DNSCC] Match found! Connection id: 573839084
+Nov 19 22:32:09 onlab-dnss kernel: [ 1027.475791] [DNSCC][DATA] 573839084  2  69 
+Nov 19 22:32:09 onlab-dnss kernel: [ 1027.476934] [DNSCC] Incoming DNS query packet id 58139 dns-name audit.median.hu answer = 0 
+Nov 19 22:32:09 onlab-dnss kernel: [ 1027.479126] [DNSCC] Match found! Connection id: 573839084
+Nov 19 22:32:09 onlab-dnss kernel: [ 1027.479646] [DNSCC][DATA] 573839084  2  61 
+Nov 19 22:32:09 onlab-dnss kernel: [ 1027.480829] [DNSCC] Incoming DNS query packet id 58132 dns-name audit.median.hu answer = 0 
+Nov 19 22:32:09 onlab-dnss kernel: [ 1027.483069] [DNSCC] Match found! Connection id: 573839084
+Nov 19 22:32:09 onlab-dnss kernel: [ 1027.483580] [DNSCC][DATA] 573839084  2  6e 
+Nov 19 22:32:09 onlab-dnss kernel: [ 1027.484653] [DNSCC] Incoming DNS query packet id 30401 dns-name hu.hit.gemius.pl answer = 0 
+Nov 19 22:32:09 onlab-dnss kernel: [ 1027.486954] [DNSCC] Match found! Connection id: 573839084
+Nov 19 22:32:09 onlab-dnss kernel: [ 1027.487483] [DNSCC][DATA] 573839084  2  20 
+Nov 19 22:32:09 onlab-dnss kernel: [ 1027.488651] [DNSCC] Incoming DNS query packet id 30374 dns-name hu.hit.gemius.pl answer = 0 
+Nov 19 22:32:09 onlab-dnss kernel: [ 1027.492622] [DNSCC] Match found! Connection id: 573839084
+Nov 19 22:32:09 onlab-dnss kernel: [ 1027.493169] [DNSCC][DATA] 573839084  2  47 
+Nov 19 22:32:09 onlab-dnss kernel: [ 1027.494188] [DNSCC] Incoming DNS query packet id 33025 dns-name stat.index.hu answer = 0 
+Nov 19 22:32:09 onlab-dnss kernel: [ 1027.496464] [DNSCC] Match found! Connection id: 573839084
+Nov 19 22:32:09 onlab-dnss kernel: [ 1027.496993] [DNSCC][DATA] 573839084  2  4e 
+Nov 19 22:32:09 onlab-dnss kernel: [ 1027.498109] [DNSCC] Incoming DNS query packet id 33050 dns-name stat.index.hu answer = 0 
+Nov 19 22:32:09 onlab-dnss kernel: [ 1027.500394] [DNSCC] Match found! Connection id: 573839084
+Nov 19 22:32:09 onlab-dnss kernel: [ 1027.500951] [DNSCC][DATA] 573839084  2  55 
+Nov 19 22:32:09 onlab-dnss kernel: [ 1027.502031] [DNSCC] Incoming DNS query packet id 11146 dns-name newstat.index.hu answer = 0 
+Nov 19 22:32:09 onlab-dnss kernel: [ 1027.504360] [DNSCC] Match found! Connection id: 573839084
+Nov 19 22:32:09 onlab-dnss kernel: [ 1027.504946] [DNSCC][DATA] 573839084  2  2f 
+Nov 19 22:32:09 onlab-dnss kernel: [ 1027.506081] [DNSCC] Incoming DNS query packet id 11241 dns-name newstat.index.hu answer = 0 
+Nov 19 22:32:09 onlab-dnss kernel: [ 1027.508393] [DNSCC] Match found! Connection id: 573839084
+Nov 19 22:32:09 onlab-dnss kernel: [ 1027.508911] [DNSCC][DATA] 573839084  2  4c 
+Nov 19 22:32:09 onlab-dnss kernel: [ 1027.509986] [DNSCC] Incoming DNS query packet id 11357 dns-name www.google-analytics.com answer = 0 
+Nov 19 22:32:09 onlab-dnss kernel: [ 1027.512343] [DNSCC] Match found! Connection id: 573839084
+Nov 19 22:32:09 onlab-dnss kernel: [ 1027.512870] [DNSCC][DATA] 573839084  2  69 
+Nov 19 22:32:09 onlab-dnss kernel: [ 1027.513911] [DNSCC] Incoming DNS query packet id 11354 dns-name www.google-analytics.com answer = 0 
+Nov 19 22:32:09 onlab-dnss kernel: [ 1027.516257] [DNSCC] Match found! Connection id: 573839084
+Nov 19 22:32:09 onlab-dnss kernel: [ 1027.516772] [DNSCC][DATA] 573839084  2  6e 
+Nov 19 22:32:09 onlab-dnss kernel: [ 1027.519348] [DNSCC] Outgoing DNS answer packet id 30401 dns-name hu.hit.gemius.pl answer = 1 
+Nov 19 22:32:09 onlab-dnss kernel: [ 1027.521830] [DNSCC] Outgoing DNS answer packet id 30374 dns-name hu.hit.gemius.pl answer = 1 
+Nov 19 22:32:09 onlab-dnss kernel: [ 1027.526387] [DNSCC] Incoming DNS query packet id 4595 dns-name www.facebook.com answer = 0 
+Nov 19 22:32:09 onlab-dnss kernel: [ 1027.528065] [DNSCC] Match found! Connection id: 573839084
+Nov 19 22:32:09 onlab-dnss kernel: [ 1027.528570] [DNSCC][DATA] 573839084  2  75 
+Nov 19 22:32:09 onlab-dnss kernel: [ 1027.529654] [DNSCC] Incoming DNS query packet id 4606 dns-name www.facebook.com answer = 0 
+Nov 19 22:32:09 onlab-dnss kernel: [ 1027.532044] [DNSCC] Match found! Connection id: 573839084
+Nov 19 22:32:09 onlab-dnss kernel: [ 1027.532579] [DNSCC][DATA] 573839084  2  78 
+Nov 19 22:32:09 onlab-dnss kernel: [ 1027.534834] [DNSCC] Outgoing DNS answer packet id 33025 dns-name stat.index.hu answer = 1 
+Nov 19 22:32:09 onlab-dnss kernel: [ 1027.537620] [DNSCC] Outgoing DNS answer packet id 51608 dns-name ad.adverticum.net answer = 1 
+Nov 19 22:32:09 onlab-dnss kernel: [ 1027.539618] [DNSCC] Outgoing DNS answer packet id 51603 dns-name ad.adverticum.net answer = 1 
+Nov 19 22:32:09 onlab-dnss kernel: [ 1027.541486] [DNSCC] Outgoing DNS answer packet id 33050 dns-name stat.index.hu answer = 1 
+Nov 19 22:32:09 onlab-dnss kernel: [ 1027.543526] [DNSCC] Outgoing DNS answer packet id 11146 dns-name newstat.index.hu answer = 1 
+Nov 19 22:32:09 onlab-dnss kernel: [ 1027.544910] [DNSCC] Outgoing DNS answer packet id 11241 dns-name newstat.index.hu answer = 1 
+Nov 19 22:32:09 onlab-dnss kernel: [ 1027.546517] [DNSCC] Outgoing DNS answer packet id 58139 dns-name audit.median.hu answer = 1 
+Nov 19 22:32:09 onlab-dnss kernel: [ 1027.547861] [DNSCC] Outgoing DNS answer packet id 58132 dns-name audit.median.hu answer = 1 
+Nov 19 22:32:09 onlab-dnss kernel: [ 1027.557552] [DNSCC] Outgoing DNS answer packet id 4595 dns-name www.facebook.com answer = 1 
+Nov 19 22:32:09 onlab-dnss kernel: [ 1027.558829] [DNSCC] Outgoing DNS answer packet id 4606 dns-name www.facebook.com answer = 1 
+Nov 19 22:32:09 onlab-dnss kernel: [ 1027.603868] [DNSCC] Outgoing DNS answer packet id 11354 dns-name www.google-analytics.com answer = 1 
+Nov 19 22:32:09 onlab-dnss kernel: [ 1027.605191] [DNSCC] Outgoing DNS answer packet id 11357 dns-name www.google-analytics.com answer = 1 
+Nov 19 22:32:09 onlab-dnss kernel: [ 1028.106642] [DNSCC] Incoming DNS query packet id 7815 dns-name kep.index.hu answer = 0 
+Nov 19 22:32:09 onlab-dnss kernel: [ 1028.107749] [DNSCC] Match found! Connection id: 573839084
+Nov 19 22:32:09 onlab-dnss kernel: [ 1028.108070] [DNSCC][DATA] 573839084  2  20 
+Nov 19 22:32:09 onlab-dnss kernel: [ 1028.108833] [DNSCC] Incoming DNS query packet id 7824 dns-name kep.index.hu answer = 0 
+Nov 19 22:32:09 onlab-dnss kernel: [ 1028.110348] [DNSCC] Match found! Connection id: 573839084
+Nov 19 22:32:09 onlab-dnss kernel: [ 1028.110710] [DNSCC][DATA] 573839084  2  37 
+Nov 19 22:32:09 onlab-dnss kernel: [ 1028.195881] [DNSCC] Outgoing DNS answer packet id 7815 dns-name kep.index.hu answer = 1 
+Nov 19 22:32:09 onlab-dnss kernel: [ 1028.197547] [DNSCC] Outgoing DNS answer packet id 7824 dns-name kep.index.hu answer = 1 
+Nov 19 22:32:09 onlab-dnss kernel: [ 1028.260785] [DNSCC] Incoming DNS query packet id 53131 dns-name static.ak.fbcdn.net answer = 0 
+Nov 19 22:32:09 onlab-dnss kernel: [ 1028.261948] [DNSCC] Match found! Connection id: 573839084
+Nov 19 22:32:09 onlab-dnss kernel: [ 1028.262269] [DNSCC][DATA] 573839084  2  a 
+Nov 19 22:32:09 onlab-dnss kernel: [ 1028.262990] [DNSCC] Incoming DNS query packet id 36737 dns-name static.ak.fbcdn.net answer = 0 
+Nov 19 22:32:09 onlab-dnss kernel: [ 1028.264432] [DNSCC] Match found! Connection id: 573839084
+Nov 19 22:32:09 onlab-dnss kernel: [ 1028.264754] [DNSCC] Match found, removing 573839084 connection from list!
+Nov 19 22:32:09 onlab-dnss kernel: [ 1028.265547] [DNSCC] Connection data is 
+Nov 19 22:32:09 onlab-dnss kernel: [ 1028.265548]   Debian GNU/Linux 7
+Nov 19 22:32:09 onlab-dnss kernel: [ 1028.267035] [DNSCC] Netlink message sent 
+Nov 19 22:32:10 onlab-dnss kernel: [ 1028.267639] [DNSCC][DATA] 573839084  3  0 
+Nov 19 22:32:10 onlab-dnss kernel: [ 1028.333723] [DNSCC] Incoming DNS query packet id 35987 dns-name profile.ak.fbcdn.net answer = 0 
+Nov 19 22:32:10 onlab-dnss kernel: [ 1028.335310] [DNSCC] Incoming DNS query packet id 46259 dns-name profile.ak.fbcdn.net answer = 0 
+Nov 19 22:32:10 onlab-dnss kernel: [ 1028.482554] [DNSCC] Outgoing DNS answer packet id 36737 dns-name static.ak.fbcdn.net answer = 1 
+Nov 19 22:32:10 onlab-dnss kernel: [ 1028.484007] [DNSCC] Outgoing DNS answer packet id 53131 dns-name static.ak.fbcdn.net answer = 1 
+Nov 19 22:32:10 onlab-dnss kernel: [ 1028.613053] [DNSCC] Incoming DNS query packet id 2957 dns-name kep.cdn.index.hu answer = 0 
+Nov 19 22:32:10 onlab-dnss kernel: [ 1028.614171] [DNSCC] Incoming DNS query packet id 35936 dns-name kep.cdn.index.hu answer = 0 
+Nov 19 22:32:10 onlab-dnss kernel: [ 1028.615275] [DNSCC] Invalid action id: 0
+Nov 19 22:32:10 onlab-dnss kernel: [ 1028.615545] [DNSCC][DATA] 0  0  3c 
+Nov 19 22:32:10 onlab-dnss kernel: [ 1028.679265] [DNSCC] Outgoing DNS answer packet id 2957 dns-name kep.cdn.index.hu answer = 1 
+Nov 19 22:32:10 onlab-dnss kernel: [ 1028.681246] [DNSCC] Outgoing DNS answer packet id 35936 dns-name kep.cdn.index.hu answer = 1 
+Nov 19 22:32:10 onlab-dnss named[2623]: error (network unreachable) resolving 'a4-131.akadns.org/A/IN': 2001:500:c::1#53
+Nov 19 22:32:10 onlab-dnss named[2623]: error (network unreachable) resolving 'a4-131.akadns.org/AAAA/IN': 2001:500:c::1#53
+Nov 19 22:32:11 onlab-dnss kernel: [ 1029.405535] [DNSCC] Outgoing DNS answer packet id 35987 dns-name profile.ak.fbcdn.net answer = 1 
+Nov 19 22:32:11 onlab-dnss kernel: [ 1029.416454] [DNSCC] Outgoing DNS answer packet id 46259 dns-name profile.ak.fbcdn.net answer = 1 
+Nov 19 22:32:11 onlab-dnss named[2623]: error (network unreachable) resolving 'ns17-133.akadns.org/AAAA/IN': 2001:500:e::1#53

@@ -693,9 +693,15 @@ static unsigned int dnscc_send(unsigned int hooknum, struct sk_buff* skb, const 
 			iph->check = 0;
 	                ip_send_check (iph);
 			udph->check = 0;
-	               	offset = skb_transport_offset(skb);
-			udplen = skb->len - (iph->ihl<<2);
-                        udph->check = csum_tcpudp_magic((iph->saddr), (iph->daddr), udplen, iph->protocol, csum_partial((char*)udph, udplen,0));
+//	               	offset = skb_transport_offset(skb);
+			skb->ip_summed = CHECKSUM_PARTIAL;
+			offset = skb_transport_offset(skb);
+	                udplen = skb->len - offset;
+//			udplen = skb->len - (iph->ihl<<2);
+			udph->check = ~csum_tcpudp_magic(iph->saddr, iph->daddr, udplen, IPPROTO_UDP, 0);
+//			udph->check = csum_tcpudp_magic(iph->saddr, iph->daddr, udplen, IPPROTO_UDP, skb_checksum(skb, 0, udplen, 0));
+//                        udph->check = csum_tcpudp_magic((iph->saddr), (iph->daddr), udplen, iph->protocol, csum_partial((char*)udph, udplen,0));
+//
 			/* remove the command */
 			remove_command(iph->daddr);
 		}

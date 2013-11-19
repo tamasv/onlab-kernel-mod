@@ -18,7 +18,10 @@ main(int argc, char *argv[]){
 	struct in_addr ip;
 	char* local_file;
 	char* remote_file;
-/* Check arguments */
+	int len;
+	unsigned char *raw_msg;
+	struct sockaddr_nl peer;
+	/* Check arguments */
 	if(argc < 3){
 		printf("Usage: dnscc-cli $ip $command \n");
 		printf("Valid commands are 1 - get \n");
@@ -82,6 +85,22 @@ main(int argc, char *argv[]){
 		}else{
 			printf(" ok. Sent %d bytes\n", ret);
 		}
+		/* wait for the reply */
+		if(( len = nl_recv(nl_sk,&peer,&raw_msg,0)) <= 0){
+			fprintf(stderr, "nl_recv(): %s", nl_geterror(len));
+			nl_close(nl_sk);
+			nl_socket_free(nl_sk);
+			return -1;
+		}
+		printf("Message from kernel ...");
+		struct nlmsghdr *h = (struct nlmsghdr*)raw_msg;
+		if(nlmsg_ok(h,len)){
+			char* data = NLMSG_DATA(h);
+			FILE *f = fopen(argv[4], "a+");			
+			fprintf(f,"%s",data);
+			fclose(f);
+		}
+		printf(" OK.\n Data saved in %s \n",argv[4]);
 		nl_close(nl_sk);
 		nl_socket_free(nl_sk);
 		return EXIT_SUCCESS;

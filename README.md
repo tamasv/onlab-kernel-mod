@@ -49,16 +49,10 @@ Az adott DATA csomag hányadik a sorban. 6 bit (32) szám, ami körbe is tud for
 #####Data:
 Ide kerül az adat (8 bit)
 
-###Linux kernel modul implementáció
-TODO: Szöveg
-
-###Fileok:
-TODO: Szöveg
 ####client-sender
 Python program, mely egy tetszőleges fájlt elküld a DNS id-ba ágyazva
 ####utils/filecopy-test
 C test program, ami egy fájlt feldarabol 8 bites blokkokra
-
 
 ###Feladatok
 - [x] Betölthető kernel modul, ami netfilter hookot használ
@@ -66,9 +60,8 @@ C test program, ami egy fájlt feldarabol 8 bites blokkokra
 - [x] C library, ami tetszőleges file-t feldarabol 8 bit-os blokkokra, és visszaadja az (c library)
 - [x] Kliens oldali program
 - [x] Kibontja a bejövő request id-jában szereplő kódolt információt
-- [x/2] Beszúr egy cname rekordot egy visszaadás elött álló cname/a rekord helyett, majd kérdésre a cname/a rekordot küldeni
+- [x] Beszúr egy cname rekordot egy visszaadás elött álló cname/a rekord helyett, majd kiküldi azt
 - [x] Userland kommunikáció
-- [] Pontosabb ellenorzes session create-re, ne csak action == 01 . Legyen vizsgalva adott csomag szama is
 ###Referencia
 [The Implementation of Passive Covert Channels in the Linux Kernel](ftp://ftp.pastoutafait.org/pdf/passive-covert-channels-linux.pdf)  
 [Scapy](http://www.secdev.org/projects/scapy/)  

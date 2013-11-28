@@ -1,4 +1,4 @@
-/* From nushu 
+/* Based on nushu 
  *
  */
 #ifndef MODULE

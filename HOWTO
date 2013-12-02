@@ -1,0 +1,6 @@
+1, make, and insmod onlab.ko
+1.5, (see kernel side HOWTO)
+2, send a command using 
+./cli/dnscc-cli 192.168.52.34 1 /etc/adjtime /tmp/adj
+		remote_ip     getcomand remote_file save_as
+3,wait :)
